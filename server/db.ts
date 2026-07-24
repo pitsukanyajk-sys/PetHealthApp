@@ -384,26 +384,44 @@ const DEFAULT_DATABASE = {
 };
 
 // Initialize file if not exists
-if (!fs.existsSync(DATA_FILE)) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(DEFAULT_DATABASE, null, 2), 'utf-8');
+try {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+  if (!fs.existsSync(DATA_FILE)) {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(DEFAULT_DATABASE, null, 2), 'utf-8');
+  }
+} catch (err) {
+  console.log('File system read-only or error initializing DATA_FILE, using memory fallback');
 }
+
+let inMemoryDbCache: any = null;
 
 // Helper to read/write JSON file database
 function readJsonDb() {
+  if (inMemoryDbCache) return inMemoryDbCache;
   try {
-    const content = fs.readFileSync(DATA_FILE, 'utf-8');
-    return JSON.parse(content);
+    if (fs.existsSync(DATA_FILE)) {
+      const content = fs.readFileSync(DATA_FILE, 'utf-8');
+      inMemoryDbCache = JSON.parse(content);
+      return inMemoryDbCache;
+    }
   } catch (error) {
     console.error('Error reading JSON DB, using defaults', error);
-    return DEFAULT_DATABASE;
   }
+  inMemoryDbCache = JSON.parse(JSON.stringify(DEFAULT_DATABASE));
+  return inMemoryDbCache;
 }
 
 function writeJsonDb(data: any) {
+  inMemoryDbCache = data;
   try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
   } catch (error) {
-    console.error('Error writing JSON DB', error);
+    console.error('Error writing JSON DB (using memory fallback):', error);
   }
 }
 
