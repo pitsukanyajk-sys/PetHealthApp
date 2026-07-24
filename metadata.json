@@ -1,0 +1,6 @@
+{
+  "name": "Pet Health Record",
+  "description": "ระบบบันทึกประวัติสัตว์เลี้ยงแบบครบวงจร พร้อมระบบแนะนำการดูแลด้วย AI และคู่มือติดตั้งฐานข้อมูล SQL Server ในธีมสีน้ำตาลสุดน่ารัก",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
