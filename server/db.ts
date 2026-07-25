@@ -71,20 +71,27 @@ async function supabaseGetAll<T>(tableName: string, filterKey?: string, filterVa
 function cleanRecord(record: any) {
   if (!record || typeof record !== 'object') return record;
   const clean: any = {};
+  const numericFields = new Set(['weight', 'cost', 'price', 'quantity']);
+
   for (const [key, val] of Object.entries(record)) {
-    if (val === undefined || val === null || val === '') {
+    if (val === undefined) {
       continue;
     }
-    if (typeof val === 'number' && isNaN(val)) {
-      continue;
-    }
-    if ((key === 'weight' || key === 'cost' || key === 'price' || key === 'quantity') && typeof val === 'string') {
-      const num = parseFloat(val);
-      if (!isNaN(num)) {
-        clean[key] = num;
+    
+    if (numericFields.has(key)) {
+      if (val === null || val === '' || val === undefined) {
+        clean[key] = null;
+      } else if (typeof val === 'number') {
+        clean[key] = isNaN(val) ? null : val;
+      } else if (typeof val === 'string') {
+        const parsed = parseFloat(val);
+        clean[key] = isNaN(parsed) ? null : parsed;
+      } else {
+        clean[key] = null;
       }
       continue;
     }
+
     clean[key] = val;
   }
   return clean;
@@ -94,9 +101,9 @@ async function supabaseInsert<T>(tableName: string, record: any): Promise<T | nu
   if (!useSupabase || !supabase) return null;
   try {
     const payload = cleanRecord(record);
-    const { data, error } = await supabase.from(tableName).insert([payload]).select();
+    const { data, error } = await supabase.from(tableName).upsert(payload, { onConflict: 'id' }).select();
     if (!error) {
-      console.log(`Supabase insert success on ${tableName}`);
+      console.log(`Supabase upsert/insert success on ${tableName}`);
       return (data && data[0]) ? (data[0] as T) : (record as T);
     }
     console.error(`Supabase insert error on ${tableName}:`, error.message, error.details, error.hint);
@@ -111,9 +118,9 @@ async function supabaseUpdate<T>(tableName: string, id: string, record: any): Pr
   if (!useSupabase || !supabase) return null;
   try {
     const payload = cleanRecord(record);
-    const { data, error } = await supabase.from(tableName).update(payload).eq('id', id).select();
+    const { data, error } = await supabase.from(tableName).upsert({ ...payload, id }, { onConflict: 'id' }).select();
     if (!error) {
-      console.log(`Supabase update success on ${tableName}`);
+      console.log(`Supabase upsert/update success on ${tableName}`);
       return (data && data[0]) ? (data[0] as T) : (record as T);
     }
     console.error(`Supabase update error on ${tableName}:`, error.message, error.details, error.hint);

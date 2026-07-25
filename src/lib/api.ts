@@ -177,11 +177,9 @@ async function fetchRecords<T extends { id: string; petId: string }>(
   petId?: string
 ): Promise<T[]> {
   const local = getLocal<T>(storageKey);
-  const filterLocal = petId ? local.filter(r => r.petId === petId) : local;
 
   try {
-    const url = petId ? `/api/${apiEndpoint}?petId=${petId}` : `/api/${apiEndpoint}`;
-    const res = await fetch(url);
+    const res = await fetch(`/api/${apiEndpoint}`);
     if (res.ok) {
       const serverData: T[] = await res.json();
       const serverMap = new Map(serverData.map(r => [r.id, r]));
@@ -191,14 +189,20 @@ async function fetchRecords<T extends { id: string; petId: string }>(
         const serverItem = serverMap.get(item.id);
         if (!serverItem) {
           try {
-            await fetch(`/api/${apiEndpoint}`, {
+            const postRes = await fetch(`/api/${apiEndpoint}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(item)
             });
-            serverData.push(item);
+            if (postRes.ok) {
+              const created = await postRes.json();
+              serverData.push(created);
+            } else {
+              serverData.push(item);
+            }
           } catch (e) {
             console.warn(`Failed to auto-sync local ${apiEndpoint} item to server`, e);
+            serverData.push(item);
           }
         } else if (JSON.stringify(item) !== JSON.stringify(serverItem)) {
           try {
@@ -224,7 +228,7 @@ async function fetchRecords<T extends { id: string; petId: string }>(
   } catch (err) {
     console.warn(`API fetch ${apiEndpoint} failed, using local storage`, err);
   }
-  return filterLocal;
+  return petId ? local.filter(r => r.petId === petId) : local;
 }
 
 async function createRecord<T extends { id: string }>(
