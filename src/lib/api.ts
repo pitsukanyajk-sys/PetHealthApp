@@ -60,12 +60,12 @@ export async function fetchPets(): Promise<Pet[]> {
     const res = await fetch('/api/pets');
     if (res.ok) {
       const serverPets: Pet[] = await res.json();
-      
-      // Auto-sync local pets to Supabase if missing from server
-      const serverIds = new Set(serverPets.map(p => p.id));
-      const unSynced = local.filter(p => !serverIds.has(p.id));
-      if (unSynced.length > 0) {
-        for (const pet of unSynced) {
+      const serverMap = new Map(serverPets.map(p => [p.id, p]));
+
+      // Auto-sync local pets to Supabase if missing or updated
+      for (const pet of local) {
+        const serverPet = serverMap.get(pet.id);
+        if (!serverPet) {
           try {
             await fetch('/api/pets', {
               method: 'POST',
@@ -75,6 +75,21 @@ export async function fetchPets(): Promise<Pet[]> {
             serverPets.push(pet);
           } catch (e) {
             console.warn('Failed to sync local pet to server', e);
+          }
+        } else if (JSON.stringify(pet) !== JSON.stringify(serverPet)) {
+          try {
+            const putRes = await fetch(`/api/pets/${pet.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(pet)
+            });
+            if (putRes.ok) {
+              const updated = await putRes.json();
+              const idx = serverPets.findIndex(p => p.id === pet.id);
+              if (idx >= 0) serverPets[idx] = updated;
+            }
+          } catch (e) {
+            console.warn('Failed to sync updated local pet to server', e);
           }
         }
       }
@@ -169,12 +184,12 @@ async function fetchRecords<T extends { id: string; petId: string }>(
     const res = await fetch(url);
     if (res.ok) {
       const serverData: T[] = await res.json();
+      const serverMap = new Map(serverData.map(r => [r.id, r]));
 
-      // Auto-sync any local-only items to Supabase
-      const serverIds = new Set(serverData.map(r => r.id));
-      const unSynced = local.filter(r => !serverIds.has(r.id));
-      if (unSynced.length > 0) {
-        for (const item of unSynced) {
+      // Auto-sync local items to Supabase if missing (POST) or updated (PUT)
+      for (const item of local) {
+        const serverItem = serverMap.get(item.id);
+        if (!serverItem) {
           try {
             await fetch(`/api/${apiEndpoint}`, {
               method: 'POST',
@@ -184,6 +199,21 @@ async function fetchRecords<T extends { id: string; petId: string }>(
             serverData.push(item);
           } catch (e) {
             console.warn(`Failed to auto-sync local ${apiEndpoint} item to server`, e);
+          }
+        } else if (JSON.stringify(item) !== JSON.stringify(serverItem)) {
+          try {
+            const putRes = await fetch(`/api/${apiEndpoint}/${item.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(item)
+            });
+            if (putRes.ok) {
+              const updated = await putRes.json();
+              const idx = serverData.findIndex(r => r.id === item.id);
+              if (idx >= 0) serverData[idx] = updated;
+            }
+          } catch (e) {
+            console.warn(`Failed to auto-sync updated local ${apiEndpoint} item to server`, e);
           }
         }
       }

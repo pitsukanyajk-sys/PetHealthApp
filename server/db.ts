@@ -780,6 +780,39 @@ export async function addVaccination(vac: Vaccination): Promise<Vaccination> {
   return vac;
 }
 
+export async function updateVaccination(vac: Vaccination): Promise<Vaccination> {
+  const sbRes = await supabaseUpdate<Vaccination>('vaccinations', vac.id, vac);
+  if (sbRes) return sbRes;
+
+  const sqlPool = await getPool();
+  if (sqlPool) {
+    try {
+      await sqlPool.request()
+        .input('id', mssql.NVarChar(50), vac.id)
+        .input('petId', mssql.NVarChar(50), vac.petId)
+        .input('name', mssql.NVarChar(100), vac.name)
+        .input('date', mssql.Date, vac.date)
+        .input('dueDate', mssql.Date, vac.dueDate)
+        .input('vetName', mssql.NVarChar(100), vac.vetName)
+        .input('status', mssql.NVarChar(50), vac.status)
+        .query(`
+          UPDATE dbo.Vaccinations 
+          SET petId = @petId, name = @name, date = @date, dueDate = @dueDate, vetName = @vetName, status = @status
+          WHERE id = @id
+        `);
+      return vac;
+    } catch (error) {
+      console.error('Error updating vaccination in MSSQL', error);
+    }
+  }
+  const db = readJsonDb();
+  const idx = db.vaccinations.findIndex((v: Vaccination) => v.id === vac.id);
+  if (idx >= 0) db.vaccinations[idx] = vac;
+  else db.vaccinations.push(vac);
+  writeJsonDb(db);
+  return vac;
+}
+
 export async function deleteVaccination(id: string): Promise<boolean> {
   const sbRes = await supabaseDelete('vaccinations', id);
   if (sbRes !== null) return true;
@@ -870,6 +903,42 @@ export async function addTreatment(tr: Treatment): Promise<Treatment> {
   return tr;
 }
 
+export async function updateTreatment(tr: Treatment): Promise<Treatment> {
+  const sbRes = await supabaseUpdate<Treatment>('treatments', tr.id, tr);
+  if (sbRes) return sbRes;
+
+  const sqlPool = await getPool();
+  if (sqlPool) {
+    try {
+      await sqlPool.request()
+        .input('id', mssql.NVarChar(50), tr.id)
+        .input('petId', mssql.NVarChar(50), tr.petId)
+        .input('date', mssql.Date, tr.date)
+        .input('diagnosis', mssql.NVarChar(200), tr.diagnosis)
+        .input('treatmentDetail', mssql.NVarChar(mssql.MAX), tr.treatmentDetail)
+        .input('medicine', mssql.NVarChar(200), tr.medicine)
+        .input('cost', mssql.Decimal(10, 2), tr.cost)
+        .input('clinicName', mssql.NVarChar(100), tr.clinicName)
+        .input('notes', mssql.NVarChar(mssql.MAX), tr.notes || null)
+        .query(`
+          UPDATE dbo.Treatments 
+          SET petId = @petId, date = @date, diagnosis = @diagnosis, treatmentDetail = @treatmentDetail, 
+              medicine = @medicine, cost = @cost, clinicName = @clinicName, notes = @notes
+          WHERE id = @id
+        `);
+      return tr;
+    } catch (error) {
+      console.error('Error updating treatment in MSSQL', error);
+    }
+  }
+  const db = readJsonDb();
+  const idx = db.treatments.findIndex((t: Treatment) => t.id === tr.id);
+  if (idx >= 0) db.treatments[idx] = tr;
+  else db.treatments.push(tr);
+  writeJsonDb(db);
+  return tr;
+}
+
 export async function deleteTreatment(id: string): Promise<boolean> {
   const sbRes = await supabaseDelete('treatments', id);
   if (sbRes !== null) return true;
@@ -954,6 +1023,38 @@ export async function addTickFlea(tf: TickFlea): Promise<TickFlea> {
   return tf;
 }
 
+export async function updateTickFlea(tf: TickFlea): Promise<TickFlea> {
+  const sbRes = await supabaseUpdate<TickFlea>('tickfleas', tf.id, tf);
+  if (sbRes) return sbRes;
+
+  const sqlPool = await getPool();
+  if (sqlPool) {
+    try {
+      await sqlPool.request()
+        .input('id', mssql.NVarChar(50), tf.id)
+        .input('petId', mssql.NVarChar(50), tf.petId)
+        .input('date', mssql.Date, tf.date)
+        .input('dueDate', mssql.Date, tf.dueDate)
+        .input('productName', mssql.NVarChar(100), tf.productName)
+        .input('notes', mssql.NVarChar(mssql.MAX), tf.notes || null)
+        .query(`
+          UPDATE dbo.TickFleas 
+          SET petId = @petId, date = @date, dueDate = @dueDate, productName = @productName, notes = @notes
+          WHERE id = @id
+        `);
+      return tf;
+    } catch (error) {
+      console.error('Error updating tick/flea record in MSSQL', error);
+    }
+  }
+  const db = readJsonDb();
+  const idx = db.tickfleas.findIndex((t: TickFlea) => t.id === tf.id);
+  if (idx >= 0) db.tickfleas[idx] = tf;
+  else db.tickfleas.push(tf);
+  writeJsonDb(db);
+  return tf;
+}
+
 export async function deleteTickFlea(id: string): Promise<boolean> {
   const sbRes = await supabaseDelete('tickfleas', id);
   if (sbRes !== null) return true;
@@ -1034,6 +1135,39 @@ export async function addDeworming(dw: Deworming): Promise<Deworming> {
   }
   const db = readJsonDb();
   db.dewormings.push(dw);
+  writeJsonDb(db);
+  return dw;
+}
+
+export async function updateDeworming(dw: Deworming): Promise<Deworming> {
+  const sbRes = await supabaseUpdate<Deworming>('dewormings', dw.id, dw);
+  if (sbRes) return sbRes;
+
+  const sqlPool = await getPool();
+  if (sqlPool) {
+    try {
+      await sqlPool.request()
+        .input('id', mssql.NVarChar(50), dw.id)
+        .input('petId', mssql.NVarChar(50), dw.petId)
+        .input('date', mssql.Date, dw.date)
+        .input('dueDate', mssql.Date, dw.dueDate)
+        .input('medicineName', mssql.NVarChar(100), dw.medicineName)
+        .input('notes', mssql.NVarChar(mssql.MAX), dw.notes || null)
+        .query(`
+          UPDATE dbo.Dewormings 
+          SET petId = @petId, date = @date, dueDate = @dueDate, medicineName = @medicineName, notes = @notes
+          WHERE id = @id
+        `);
+      return dw;
+    } catch (error) {
+      console.error('Error updating deworming in MSSQL', error);
+    }
+  }
+  const db = readJsonDb();
+  if (!db.dewormings) db.dewormings = [];
+  const idx = db.dewormings.findIndex((d: Deworming) => d.id === dw.id);
+  if (idx >= 0) db.dewormings[idx] = dw;
+  else db.dewormings.push(dw);
   writeJsonDb(db);
   return dw;
 }
@@ -1128,6 +1262,19 @@ export async function addVaccineSymptom(vs: VaccineSymptom): Promise<VaccineSymp
   return vs;
 }
 
+export async function updateVaccineSymptom(vs: VaccineSymptom): Promise<VaccineSymptom> {
+  const sbRes = await supabaseUpdate<VaccineSymptom>('vaccinesymptoms', vs.id, vs);
+  if (sbRes) return sbRes;
+
+  const db = readJsonDb();
+  if (!db.vaccinesymptoms) db.vaccinesymptoms = [];
+  const idx = db.vaccinesymptoms.findIndex((v: VaccineSymptom) => v.id === vs.id);
+  if (idx >= 0) db.vaccinesymptoms[idx] = vs;
+  else db.vaccinesymptoms.push(vs);
+  writeJsonDb(db);
+  return vs;
+}
+
 export async function deleteVaccineSymptom(id: string): Promise<boolean> {
   const sbRes = await supabaseDelete('vaccinesymptoms', id);
   if (sbRes !== null) return true;
@@ -1212,6 +1359,19 @@ export async function addHeartworm(hw: Heartworm): Promise<Heartworm> {
   const db = readJsonDb();
   if (!db.heartworms) db.heartworms = [];
   db.heartworms.push(hw);
+  writeJsonDb(db);
+  return hw;
+}
+
+export async function updateHeartworm(hw: Heartworm): Promise<Heartworm> {
+  const sbRes = await supabaseUpdate<Heartworm>('heartworms', hw.id, hw);
+  if (sbRes) return sbRes;
+
+  const db = readJsonDb();
+  if (!db.heartworms) db.heartworms = [];
+  const idx = db.heartworms.findIndex((h: Heartworm) => h.id === hw.id);
+  if (idx >= 0) db.heartworms[idx] = hw;
+  else db.heartworms.push(hw);
   writeJsonDb(db);
   return hw;
 }
@@ -1304,6 +1464,19 @@ export async function addRoutineHealth(rh: RoutineHealth): Promise<RoutineHealth
   const db = readJsonDb();
   if (!db.routinehealths) db.routinehealths = [];
   db.routinehealths.push(rh);
+  writeJsonDb(db);
+  return rh;
+}
+
+export async function updateRoutineHealth(rh: RoutineHealth): Promise<RoutineHealth> {
+  const sbRes = await supabaseUpdate<RoutineHealth>('routinehealths', rh.id, rh);
+  if (sbRes) return sbRes;
+
+  const db = readJsonDb();
+  if (!db.routinehealths) db.routinehealths = [];
+  const idx = db.routinehealths.findIndex((r: RoutineHealth) => r.id === rh.id);
+  if (idx >= 0) db.routinehealths[idx] = rh;
+  else db.routinehealths.push(rh);
   writeJsonDb(db);
   return rh;
 }
@@ -1402,6 +1575,19 @@ export async function addAnnualHealth(ah: AnnualHealth): Promise<AnnualHealth> {
   return ah;
 }
 
+export async function updateAnnualHealth(ah: AnnualHealth): Promise<AnnualHealth> {
+  const sbRes = await supabaseUpdate<AnnualHealth>('annualhealths', ah.id, ah);
+  if (sbRes) return sbRes;
+
+  const db = readJsonDb();
+  if (!db.annualhealths) db.annualhealths = [];
+  const idx = db.annualhealths.findIndex((a: AnnualHealth) => a.id === ah.id);
+  if (idx >= 0) db.annualhealths[idx] = ah;
+  else db.annualhealths.push(ah);
+  writeJsonDb(db);
+  return ah;
+}
+
 export async function deleteAnnualHealth(id: string): Promise<boolean> {
   const sbRes = await supabaseDelete('annualhealths', id);
   if (sbRes !== null) return true;
@@ -1490,6 +1676,19 @@ export async function addMemory(mem: Memory): Promise<Memory> {
   return mem;
 }
 
+export async function updateMemory(mem: Memory): Promise<Memory> {
+  const sbRes = await supabaseUpdate<Memory>('memories', mem.id, mem);
+  if (sbRes) return sbRes;
+
+  const db = readJsonDb();
+  if (!db.memories) db.memories = [];
+  const idx = db.memories.findIndex((m: Memory) => m.id === mem.id);
+  if (idx >= 0) db.memories[idx] = mem;
+  else db.memories.push(mem);
+  writeJsonDb(db);
+  return mem;
+}
+
 export async function deleteMemory(id: string): Promise<boolean> {
   const sbRes = await supabaseDelete('memories', id);
   if (sbRes !== null) return true;
@@ -1574,6 +1773,19 @@ export async function addExpense(exp: Expense): Promise<Expense> {
   const db = readJsonDb();
   if (!db.expenses) db.expenses = [];
   db.expenses.push(exp);
+  writeJsonDb(db);
+  return exp;
+}
+
+export async function updateExpense(exp: Expense): Promise<Expense> {
+  const sbRes = await supabaseUpdate<Expense>('expenses', exp.id, exp);
+  if (sbRes) return sbRes;
+
+  const db = readJsonDb();
+  if (!db.expenses) db.expenses = [];
+  const idx = db.expenses.findIndex((e: Expense) => e.id === exp.id);
+  if (idx >= 0) db.expenses[idx] = exp;
+  else db.expenses.push(exp);
   writeJsonDb(db);
   return exp;
 }

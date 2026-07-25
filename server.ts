@@ -17,33 +17,43 @@ import {
   deletePet,
   getVaccinations,
   addVaccination,
+  updateVaccination,
   deleteVaccination,
   getTreatments,
   addTreatment,
+  updateTreatment,
   deleteTreatment,
   getTickFleas,
   addTickFlea,
+  updateTickFlea,
   deleteTickFlea,
   getDewormings,
   addDeworming,
+  updateDeworming,
   deleteDeworming,
   getVaccineSymptoms,
   addVaccineSymptom,
+  updateVaccineSymptom,
   deleteVaccineSymptom,
   getHeartworms,
   addHeartworm,
+  updateHeartworm,
   deleteHeartworm,
   getRoutineHealths,
   addRoutineHealth,
+  updateRoutineHealth,
   deleteRoutineHealth,
   getAnnualHealths,
   addAnnualHealth,
+  updateAnnualHealth,
   deleteAnnualHealth,
   getMemories,
   addMemory,
+  updateMemory,
   deleteMemory,
   getExpenses,
   addExpense,
+  updateExpense,
   deleteExpense
 } from './server/db.js';
 
@@ -150,6 +160,15 @@ app.post('/api/vaccinations', async (req, res) => {
   }
 });
 
+app.put('/api/vaccinations/:id', async (req, res) => {
+  try {
+    const updated = await updateVaccination(req.body);
+    res.json(updated);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.delete('/api/vaccinations/:id', async (req, res) => {
   try {
     const success = await deleteVaccination(req.params.id);
@@ -174,6 +193,15 @@ app.post('/api/treatments', async (req, res) => {
   try {
     const newTr = await addTreatment(req.body);
     res.status(201).json(newTr);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/treatments/:id', async (req, res) => {
+  try {
+    const updated = await updateTreatment(req.body);
+    res.json(updated);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -208,6 +236,15 @@ app.post('/api/tickfleas', async (req, res) => {
   }
 });
 
+app.put('/api/tickfleas/:id', async (req, res) => {
+  try {
+    const updated = await updateTickFlea(req.body);
+    res.json(updated);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.delete('/api/tickfleas/:id', async (req, res) => {
   try {
     const success = await deleteTickFlea(req.params.id);
@@ -232,6 +269,15 @@ app.post('/api/dewormings', async (req, res) => {
   try {
     const newRecord = await addDeworming(req.body);
     res.status(201).json(newRecord);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/dewormings/:id', async (req, res) => {
+  try {
+    const updated = await updateDeworming(req.body);
+    res.json(updated);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -266,6 +312,15 @@ app.post('/api/vaccinesymptoms', async (req, res) => {
   }
 });
 
+app.put('/api/vaccinesymptoms/:id', async (req, res) => {
+  try {
+    const updated = await updateVaccineSymptom(req.body);
+    res.json(updated);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.delete('/api/vaccinesymptoms/:id', async (req, res) => {
   try {
     const success = await deleteVaccineSymptom(req.params.id);
@@ -290,6 +345,15 @@ app.post('/api/heartworms', async (req, res) => {
   try {
     const record = await addHeartworm(req.body);
     res.status(201).json(record);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/heartworms/:id', async (req, res) => {
+  try {
+    const updated = await updateHeartworm(req.body);
+    res.json(updated);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -324,6 +388,15 @@ app.post('/api/routinehealths', async (req, res) => {
   }
 });
 
+app.put('/api/routinehealths/:id', async (req, res) => {
+  try {
+    const updated = await updateRoutineHealth(req.body);
+    res.json(updated);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.delete('/api/routinehealths/:id', async (req, res) => {
   try {
     const success = await deleteRoutineHealth(req.params.id);
@@ -348,6 +421,15 @@ app.post('/api/annualhealths', async (req, res) => {
   try {
     const record = await addAnnualHealth(req.body);
     res.status(201).json(record);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/annualhealths/:id', async (req, res) => {
+  try {
+    const updated = await updateAnnualHealth(req.body);
+    res.json(updated);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -382,6 +464,15 @@ app.post('/api/memories', async (req, res) => {
   }
 });
 
+app.put('/api/memories/:id', async (req, res) => {
+  try {
+    const updated = await updateMemory(req.body);
+    res.json(updated);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.delete('/api/memories/:id', async (req, res) => {
   try {
     const success = await deleteMemory(req.params.id);
@@ -406,6 +497,15 @@ app.post('/api/expenses', async (req, res) => {
   try {
     const record = await addExpense(req.body);
     res.status(201).json(record);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/expenses/:id', async (req, res) => {
+  try {
+    const updated = await updateExpense(req.body);
+    res.json(updated);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
