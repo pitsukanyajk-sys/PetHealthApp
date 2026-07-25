@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Memory } from '../types';
-import { createMemory, deleteMemory } from '../lib/api';
-import { Plus, Trash2, Calendar, Sparkles, Smile, Star, Heart, Search } from 'lucide-react';
+import { createMemory, updateMemory, deleteMemory } from '../lib/api';
+import { Plus, Trash2, Pencil, Calendar, Sparkles, Smile, Star, Heart, Search } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import { formatThaiDate } from '../lib/utils';
 
@@ -22,6 +22,27 @@ export default function MemoriesComponent({ petId, records, onRefresh, isReadOnl
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editingMemory, setEditingMemory] = useState<Memory | null>(null);
+
+  const resetForm = () => {
+    setEditingMemory(null);
+    setTitle('');
+    setStory('');
+    setMood('มีความสุขมาก 💖');
+    setDate(new Date().toISOString().split('T')[0]);
+    setNotes('');
+    setShowForm(false);
+  };
+
+  const handleEdit = (rec: Memory) => {
+    setEditingMemory(rec);
+    setTitle(rec.title || '');
+    setStory(rec.story || '');
+    setMood(rec.mood || 'มีความสุขมาก 💖');
+    setDate(rec.date || new Date().toISOString().split('T')[0]);
+    setNotes(rec.notes || '');
+    setShowForm(true);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,23 +52,30 @@ export default function MemoriesComponent({ petId, records, onRefresh, isReadOnl
     }
     setLoading(true);
     try {
-      await createMemory({
-        petId,
-        date,
-        title,
-        story,
-        mood,
-        notes
-      });
-      setTitle('');
-      setStory('');
-      setMood('มีความสุขมาก 💖');
-      setNotes('');
-      setShowForm(false);
+      if (editingMemory) {
+        await updateMemory({
+          ...editingMemory,
+          date,
+          title,
+          story,
+          mood,
+          notes
+        });
+      } else {
+        await createMemory({
+          petId,
+          date,
+          title,
+          story,
+          mood,
+          notes
+        });
+      }
+      resetForm();
       onRefresh();
     } catch (err) {
       console.error(err);
-      alert('ไม่สามารถเพิ่มบันทึกความทรงจำได้');
+      alert('ไม่สามารถบันทึกข้อมูลความทรงจำได้');
     } finally {
       setLoading(false);
     }
@@ -120,7 +148,9 @@ export default function MemoriesComponent({ petId, records, onRefresh, isReadOnl
 
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-amber-50/30 rounded-xl p-5 mb-6 border border-amber-100/60 text-sm">
-          <h4 className="text-sm font-bold text-amber-950 mb-3">✍️ เขียนไดอารี่หน้าใหม่</h4>
+          <h4 className="text-sm font-bold text-amber-950 mb-3">
+            {editingMemory ? '✍️ แก้ไขไดอารี่' : '✍️ เขียนไดอารี่หน้าใหม่'}
+          </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-stone-600 mb-1">หัวข้อเรื่องราว *</label>
@@ -186,8 +216,8 @@ export default function MemoriesComponent({ petId, records, onRefresh, isReadOnl
           <div className="flex justify-end gap-2 mt-4">
             <button
               type="button"
-              onClick={() => setShowForm(false)}
-              className="text-stone-600 bg-stone-100 hover:bg-stone-200 px-4 py-2 rounded-lg text-xs"
+              onClick={resetForm}
+              className="text-stone-600 bg-stone-100 hover:bg-stone-200 px-4 py-2 rounded-lg text-xs cursor-pointer"
             >
               ยกเลิก
             </button>

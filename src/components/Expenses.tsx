@@ -1,11 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { Pet, Expense, ExpenseItem } from '../types';
-import { createExpense, deleteExpense } from '../lib/api';
+import { createExpense, updateExpense, deleteExpense } from '../lib/api';
 import ConfirmModal from './ConfirmModal';
 import { formatThaiDate } from '../lib/utils';
 import { 
   Plus, 
   Trash2, 
+  Pencil,
   Calendar, 
   ListFilter, 
   CreditCard, 
@@ -127,6 +128,37 @@ export default function ExpensesComponent({ petId, activePet, expenses, onRefres
     setTempAmount('');
   };
 
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+
+  const resetForm = () => {
+    setEditingExpense(null);
+    setAmount('');
+    setDescription('');
+    setDate(new Date().toISOString().split('T')[0]);
+    setCategory('food');
+    setIsGrouped(false);
+    setTempItems([]);
+    setBillImage('');
+    setShowForm(false);
+  };
+
+  const handleEdit = (exp: Expense) => {
+    setEditingExpense(exp);
+    setCategory(exp.category);
+    setAmount(String(exp.amount));
+    setDescription(exp.description || '');
+    setDate(exp.date || new Date().toISOString().split('T')[0]);
+    setBillImage(exp.billImage || '');
+    if (exp.items && exp.items.length > 0) {
+      setIsGrouped(true);
+      setTempItems(exp.items);
+    } else {
+      setIsGrouped(false);
+      setTempItems([]);
+    }
+    setShowForm(true);
+  };
+
   // Delete line item
   const handleDeleteLineItem = (index: number) => {
     setTempItems(tempItems.filter((_, i) => i !== index));
@@ -166,24 +198,29 @@ export default function ExpensesComponent({ petId, activePet, expenses, onRefres
 
     setLoading(true);
     try {
-      await createExpense({
-        petId,
-        date,
-        category: finalCategory,
-        amount: finalAmount,
-        description: finalDescription,
-        billImage: billImage || undefined,
-        items: isGrouped ? tempItems : undefined
-      });
+      if (editingExpense) {
+        await updateExpense({
+          ...editingExpense,
+          date,
+          category: finalCategory,
+          amount: finalAmount,
+          description: finalDescription,
+          billImage: billImage || undefined,
+          items: isGrouped ? tempItems : undefined
+        });
+      } else {
+        await createExpense({
+          petId,
+          date,
+          category: finalCategory,
+          amount: finalAmount,
+          description: finalDescription,
+          billImage: billImage || undefined,
+          items: isGrouped ? tempItems : undefined
+        });
+      }
 
-      // Reset Form State
-      setAmount('');
-      setDescription('');
-      setDate(new Date().toISOString().split('T')[0]);
-      setIsGrouped(false);
-      setTempItems([]);
-      setBillImage('');
-      setShowForm(false);
+      resetForm();
       onRefresh();
     } catch (err) {
       console.error(err);
@@ -349,7 +386,7 @@ export default function ExpensesComponent({ petId, activePet, expenses, onRefres
             <div className="flex justify-between items-center border-b border-amber-100 pb-2.5">
               <h4 className="font-bold text-amber-900 flex items-center gap-1.5">
                 <Receipt className="w-4 h-4 text-amber-800" />
-                จดบันทึกค่าใช้จ่ายใหม่
+                {editingExpense ? 'แก้ไขบันทึกค่าใช้จ่าย' : 'จดบันทึกค่าใช้จ่ายใหม่'}
               </h4>
               <button
                 type="button"
@@ -586,12 +623,8 @@ export default function ExpensesComponent({ petId, activePet, expenses, onRefres
             <div className="flex justify-end gap-2.5 pt-2.5 border-t border-amber-150">
               <button
                 type="button"
-                onClick={() => {
-                  setShowForm(false);
-                  setTempItems([]);
-                  setBillImage('');
-                }}
-                className="text-stone-700 bg-stone-100 hover:bg-stone-200 px-4 py-2 rounded-xl text-xs font-bold transition-all"
+                onClick={resetForm}
+                className="text-stone-700 bg-stone-100 hover:bg-stone-200 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer"
               >
                 ยกเลิก
               </button>
@@ -713,16 +746,28 @@ export default function ExpensesComponent({ petId, activePet, expenses, onRefres
                           </button>
                         )}
                         {!isReadOnly && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(exp.id);
-                            }}
-                            className="text-stone-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-stone-100 transition cursor-pointer"
-                            title="ลบรายการ"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEdit(exp);
+                              }}
+                              className="text-stone-400 hover:text-amber-600 p-1.5 rounded-lg hover:bg-stone-100 transition cursor-pointer"
+                              title="แก้ไขรายการ"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(exp.id);
+                              }}
+                              className="text-stone-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-stone-100 transition cursor-pointer"
+                              title="ลบรายการ"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Vaccination } from '../types';
-import { createVaccination, deleteVaccination } from '../lib/api';
-import { Plus, Trash2, Calendar, ShieldCheck, User, CheckCircle2, Clock, MapPin, DollarSign, Award, ChevronDown, Check, X, Syringe, Tag, Search, Camera, Image as ImageIcon } from 'lucide-react';
+import { createVaccination, updateVaccination, deleteVaccination } from '../lib/api';
+import { Plus, Trash2, Pencil, Calendar, ShieldCheck, User, CheckCircle2, Clock, MapPin, DollarSign, Award, ChevronDown, Check, X, Syringe, Tag, Search, Camera, Image as ImageIcon } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import ImageProofUploader from './ImageProofUploader';
 import ImageProofModal from './ImageProofModal';
@@ -36,6 +36,41 @@ export default function VaccineList({ petId, vaccines, onRefresh, isReadOnly, pe
   const [loading, setLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [selectedVaccine, setSelectedVaccine] = useState<Vaccination | null>(null);
+  const [editingVaccine, setEditingVaccine] = useState<Vaccination | null>(null);
+
+  const resetForm = () => {
+    setEditingVaccine(null);
+    setName('');
+    setDate('');
+    setDueDate('');
+    setVetName('');
+    setClinicName('');
+    setLotNo('');
+    setExpiryDate('');
+    setCost('');
+    setWeight('');
+    setAge('');
+    setProofImage(undefined);
+    setStatus('completed');
+    setShowAddForm(false);
+  };
+
+  const handleEdit = (vac: Vaccination) => {
+    setEditingVaccine(vac);
+    setName(vac.name || '');
+    setDate(vac.date || '');
+    setDueDate(vac.dueDate || '');
+    setVetName(vac.vetName || '');
+    setClinicName(vac.clinicName || '');
+    setLotNo(vac.lotNo || '');
+    setExpiryDate(vac.expiryDate || '');
+    setCost(vac.cost ? String(vac.cost) : '');
+    setWeight(vac.weight ? String(vac.weight) : '');
+    setAge(vac.age || '');
+    setProofImage(vac.proofImage);
+    setStatus(vac.status || 'completed');
+    setShowAddForm(true);
+  };
 
   // Auto-fill or calculate age & weight when date/birthDate changes
   useEffect(() => {
@@ -102,45 +137,50 @@ export default function VaccineList({ petId, vaccines, onRefresh, isReadOnly, pe
     const costNum = parseFloat(cost) || 0;
     const weightNum = parseFloat(weight) || 0;
     try {
-      // 1. Create Vaccination Record
-      const newVaccination = await createVaccination({
-        petId,
-        name,
-        date,
-        dueDate,
-        vetName,
-        status,
-        cost: costNum,
-        weight: weightNum > 0 ? weightNum : undefined,
-        age: age.trim() || undefined,
-        clinicName: clinicName || undefined,
-        lotNo: lotNo || undefined,
-        expiryDate: expiryDate || undefined,
-        proofImage: proofImage || undefined
-      });
+      if (editingVaccine) {
+        await updateVaccination({
+          ...editingVaccine,
+          name,
+          date,
+          dueDate,
+          vetName,
+          status,
+          cost: costNum,
+          weight: weightNum > 0 ? weightNum : undefined,
+          age: age.trim() || undefined,
+          clinicName: clinicName || undefined,
+          lotNo: lotNo || undefined,
+          expiryDate: expiryDate || undefined,
+          proofImage: proofImage || undefined
+        });
+      } else {
+        await createVaccination({
+          petId,
+          name,
+          date,
+          dueDate,
+          vetName,
+          status,
+          cost: costNum,
+          weight: weightNum > 0 ? weightNum : undefined,
+          age: age.trim() || undefined,
+          clinicName: clinicName || undefined,
+          lotNo: lotNo || undefined,
+          expiryDate: expiryDate || undefined,
+          proofImage: proofImage || undefined
+        });
+      }
 
       // Update pet weight if provided and valid
       if (weightNum > 0 && onUpdatePetWeight) {
         onUpdatePetWeight(weightNum);
       }
 
-      setName('');
-      setDate('');
-      setDueDate('');
-      setVetName('');
-      setClinicName('');
-      setLotNo('');
-      setExpiryDate('');
-      setCost('');
-      setWeight('');
-      setAge('');
-      setProofImage(undefined);
-      setStatus('completed');
-      setShowAddForm(false);
+      resetForm();
       onRefresh();
     } catch (err) {
       console.error(err);
-      alert('ไม่สามารถเพิ่มข้อมูลวัคซีนได้');
+      alert('ไม่สามารถบันทึกข้อมูลวัคซีนได้');
     } finally {
       setLoading(false);
     }
@@ -218,7 +258,7 @@ export default function VaccineList({ petId, vaccines, onRefresh, isReadOnly, pe
         <form id="add-vaccine-form" onSubmit={handleSubmit} className="bg-amber-50/50 rounded-xl p-5 mb-6 border border-amber-100/50 animate-fade-in text-sm space-y-4">
           <h4 className="text-base font-bold text-amber-950 flex items-center gap-2 pb-2 border-b border-amber-100">
             <Award className="w-5 h-5 text-amber-700" />
-            บันทึกประวัติฉีดวัคซีนใหม่
+            {editingVaccine ? 'แก้ไขบันทึกประวัติวัคซีน' : 'บันทึกประวัติฉีดวัคซีนใหม่'}
           </h4>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -422,8 +462,8 @@ export default function VaccineList({ petId, vaccines, onRefresh, isReadOnly, pe
           <div className="flex justify-end gap-2 pt-3 border-t border-amber-100">
             <button
               type="button"
-              onClick={() => setShowAddForm(false)}
-              className="text-stone-700 bg-stone-100 hover:bg-stone-200 px-4 py-2 rounded-lg text-sm font-medium transition"
+              onClick={resetForm}
+              className="text-stone-700 bg-stone-100 hover:bg-stone-200 px-4 py-2 rounded-lg text-sm font-medium transition cursor-pointer"
             >
               ยกเลิก
             </button>
@@ -523,15 +563,26 @@ export default function VaccineList({ petId, vaccines, onRefresh, isReadOnly, pe
                       </span>
                     )}
                   </td>
-                  <td className="py-3.5 px-4 text-right w-[8%] min-w-[70px]">
+                  <td className="py-3.5 px-4 text-right w-[8%] min-w-[90px]">
                     {!isReadOnly && (
-                      <button
-                        onClick={() => handleDelete(vac.id)}
-                        className="text-stone-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-stone-150 transition cursor-pointer"
-                        title="ลบบันทึกนี้"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleEdit(vac)}
+                          className="text-stone-400 hover:text-amber-600 p-1.5 rounded-lg hover:bg-stone-150 transition cursor-pointer"
+                          title="แก้ไขบันทึกนี้"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(vac.id)}
+                          className="text-stone-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-stone-150 transition cursor-pointer"
+                          title="ลบบันทึกนี้"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>

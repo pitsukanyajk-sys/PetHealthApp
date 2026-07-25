@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AnnualHealth } from '../types';
-import { createAnnualHealth, deleteAnnualHealth } from '../lib/api';
-import { Plus, Trash2, Calendar, ShieldCheck, Heart, Stethoscope, FileText, Search, Camera, Image as ImageIcon } from 'lucide-react';
+import { createAnnualHealth, updateAnnualHealth, deleteAnnualHealth } from '../lib/api';
+import { Plus, Trash2, Pencil, Calendar, ShieldCheck, Heart, Stethoscope, FileText, Search, Camera, Image as ImageIcon } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import { formatThaiDate, calculateAge } from '../lib/utils';
 import ImageProofUploader from './ImageProofUploader';
@@ -34,6 +34,39 @@ export default function AnnualHealthComponent({ petId, records, onRefresh, isRea
   const [viewProofImage, setViewProofImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editingRecord, setEditingRecord] = useState<AnnualHealth | null>(null);
+
+  const resetForm = () => {
+    setEditingRecord(null);
+    setYear(new Date().getFullYear().toString());
+    setDate(new Date().toISOString().split('T')[0]);
+    setClinicName('');
+    setPhysicalExam('');
+    setBloodTest('');
+    setVaccineStatus('');
+    setWeight('');
+    setAge('');
+    setCost('');
+    setNotes('');
+    setProofImage(undefined);
+    setShowForm(false);
+  };
+
+  const handleEdit = (rec: AnnualHealth) => {
+    setEditingRecord(rec);
+    setYear(String(rec.year));
+    setDate(rec.date || '');
+    setClinicName(rec.clinicName || '');
+    setPhysicalExam(rec.physicalExam || '');
+    setBloodTest(rec.bloodTest || '');
+    setVaccineStatus(rec.vaccineStatus || '');
+    setWeight(rec.weight ? String(rec.weight) : '');
+    setAge(rec.age || '');
+    setCost(rec.cost ? String(rec.cost) : '');
+    setNotes(rec.notes || '');
+    setProofImage(rec.proofImage);
+    setShowForm(true);
+  };
 
   // Auto age and weight
   useEffect(() => {
@@ -43,10 +76,10 @@ export default function AnnualHealthComponent({ petId, records, onRefresh, isRea
   }, [date, petBirthDate]);
 
   useEffect(() => {
-    if (showForm && petWeight) {
+    if (showForm && petWeight && !editingRecord) {
       setWeight(String(petWeight));
     }
-  }, [showForm, petWeight]);
+  }, [showForm, petWeight, editingRecord]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,37 +90,45 @@ export default function AnnualHealthComponent({ petId, records, onRefresh, isRea
     setLoading(true);
     const weightNum = parseFloat(weight) || 0;
     try {
-      await createAnnualHealth({
-        petId,
-        year: Number(year),
-        date,
-        clinicName,
-        physicalExam,
-        bloodTest,
-        vaccineStatus,
-        weight: weightNum > 0 ? weightNum : undefined,
-        age: age.trim() || undefined,
-        cost: cost ? Number(cost) : 0,
-        notes,
-        proofImage: proofImage || undefined
-      });
+      if (editingRecord) {
+        await updateAnnualHealth({
+          ...editingRecord,
+          year: Number(year),
+          date,
+          clinicName,
+          physicalExam,
+          bloodTest,
+          vaccineStatus,
+          weight: weightNum > 0 ? weightNum : undefined,
+          age: age.trim() || undefined,
+          cost: cost ? Number(cost) : 0,
+          notes,
+          proofImage: proofImage || undefined
+        });
+      } else {
+        await createAnnualHealth({
+          petId,
+          year: Number(year),
+          date,
+          clinicName,
+          physicalExam,
+          bloodTest,
+          vaccineStatus,
+          weight: weightNum > 0 ? weightNum : undefined,
+          age: age.trim() || undefined,
+          cost: cost ? Number(cost) : 0,
+          notes,
+          proofImage: proofImage || undefined
+        });
+      }
       if (weightNum > 0 && onUpdatePetWeight) {
         onUpdatePetWeight(weightNum);
       }
-      setClinicName('');
-      setPhysicalExam('');
-      setBloodTest('');
-      setVaccineStatus('');
-      setWeight('');
-      setAge('');
-      setCost('');
-      setNotes('');
-      setProofImage(undefined);
-      setShowForm(false);
+      resetForm();
       onRefresh();
     } catch (err) {
       console.error(err);
-      alert('ไม่สามารถเพิ่มข้อมูลตรวจสุขภาพรายปีได้');
+      alert('ไม่สามารถบันทึกข้อมูลตรวจสุขภาพรายปีได้');
     } finally {
       setLoading(false);
     }
@@ -160,7 +201,9 @@ export default function AnnualHealthComponent({ petId, records, onRefresh, isRea
 
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-amber-50/40 rounded-xl p-4 mb-6 border border-amber-100/50 text-sm">
-          <h4 className="text-sm font-bold text-amber-900 mb-3">บันทึกประวัติตรวจสุขภาพประจำปี</h4>
+          <h4 className="text-sm font-bold text-amber-900 mb-3">
+            {editingRecord ? 'แก้ไขประวัติตรวจสุขภาพประจำปี' : 'บันทึกประวัติตรวจสุขภาพประจำปี'}
+          </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-stone-600 mb-1">รอบปีที่ตรวจ (พ.ศ. / ค.ศ.) *</label>
@@ -283,8 +326,8 @@ export default function AnnualHealthComponent({ petId, records, onRefresh, isRea
           <div className="flex justify-end gap-2 mt-4">
             <button
               type="button"
-              onClick={() => setShowForm(false)}
-              className="text-stone-600 bg-stone-100 hover:bg-stone-200 px-4 py-2 rounded-lg text-xs"
+              onClick={resetForm}
+              className="text-stone-600 bg-stone-100 hover:bg-stone-200 px-4 py-2 rounded-lg text-xs cursor-pointer"
             >
               ยกเลิก
             </button>
@@ -325,12 +368,22 @@ export default function AnnualHealthComponent({ petId, records, onRefresh, isRea
                     </h4>
                   </div>
                   {!isReadOnly && (
-                    <button
-                      onClick={() => handleDelete(rec.id)}
-                      className="text-stone-400 hover:text-red-500 p-1.5 rounded hover:bg-stone-100 transition cursor-pointer"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => handleEdit(rec)}
+                        className="text-stone-400 hover:text-amber-600 p-1.5 rounded hover:bg-stone-100 transition cursor-pointer"
+                        title="แก้ไขข้อมูล"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(rec.id)}
+                        className="text-stone-400 hover:text-red-500 p-1.5 rounded hover:bg-stone-100 transition cursor-pointer"
+                        title="ลบข้อมูล"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   )}
                 </div>
 

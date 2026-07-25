@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Treatment, TreatmentMedicineItem } from '../types';
-import { createTreatment, deleteTreatment } from '../lib/api';
-import { Plus, Trash2, Calendar, Activity, DollarSign, MessageCircle, Heart, MapPin, Pill, Calculator, ListPlus, Search, Camera, Image as ImageIcon } from 'lucide-react';
+import { createTreatment, updateTreatment, deleteTreatment } from '../lib/api';
+import { Plus, Trash2, Pencil, Calendar, Activity, DollarSign, MessageCircle, Heart, MapPin, Pill, Calculator, ListPlus, Search, Camera, Image as ImageIcon } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import ImageProofUploader from './ImageProofUploader';
 import ImageProofModal from './ImageProofModal';
@@ -54,6 +54,40 @@ export default function TreatmentList({ petId, treatments, onRefresh, isReadOnly
   const [medicalFee, setMedicalFee] = useState('');
   const [loading, setLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editingTreatment, setEditingTreatment] = useState<Treatment | null>(null);
+
+  const resetForm = () => {
+    setEditingTreatment(null);
+    setDate('');
+    setDiagnosis('');
+    setTreatmentDetail('');
+    setWeight('');
+    setAge('');
+    setMedicines([]);
+    setMedicalFee('');
+    setClinicName('');
+    setNotes('');
+    setProofImage(undefined);
+    setShowAddForm(false);
+  };
+
+  const handleEdit = (tr: Treatment) => {
+    setEditingTreatment(tr);
+    setDate(tr.date || '');
+    setDiagnosis(tr.diagnosis || '');
+    setTreatmentDetail(tr.treatmentDetail || '');
+    setClinicName(tr.clinicName || '');
+    setWeight(tr.weight ? String(tr.weight) : '');
+    setAge(tr.age || '');
+    setNotes(tr.notes || '');
+    setProofImage(tr.proofImage);
+    const medList = tr.medicinesList || [];
+    setMedicines(medList);
+    const medsCost = medList.reduce((sum, item) => sum + item.price, 0);
+    const fee = (tr.cost || 0) - medsCost;
+    setMedicalFee(fee > 0 ? String(fee) : '');
+    setShowAddForm(true);
+  };
 
   const handleAddMedicine = () => {
     if (!medName || !medQty || !medUnit) {
@@ -93,37 +127,43 @@ export default function TreatmentList({ petId, treatments, onRefresh, isReadOnly
     setLoading(true);
     const weightNum = parseFloat(weight) || 0;
     try {
-      // Create Treatment in database
-      const created = await createTreatment({
-        petId,
-        date,
-        diagnosis,
-        treatmentDetail,
-        medicine: medicines.map(m => `${m.name} (${m.quantity} ${m.unit}) - ฿${m.price}`).join(', ') || undefined,
-        medicinesList: medicines,
-        cost: computedTotalCost,
-        clinicName,
-        weight: weightNum > 0 ? weightNum : undefined,
-        age: age.trim() || undefined,
-        notes,
-        proofImage: proofImage || undefined
-      });
+      if (editingTreatment) {
+        await updateTreatment({
+          ...editingTreatment,
+          date,
+          diagnosis,
+          treatmentDetail,
+          medicine: medicines.map(m => `${m.name} (${m.quantity} ${m.unit}) - ฿${m.price}`).join(', ') || undefined,
+          medicinesList: medicines,
+          cost: computedTotalCost,
+          clinicName,
+          weight: weightNum > 0 ? weightNum : undefined,
+          age: age.trim() || undefined,
+          notes,
+          proofImage: proofImage || undefined
+        });
+      } else {
+        await createTreatment({
+          petId,
+          date,
+          diagnosis,
+          treatmentDetail,
+          medicine: medicines.map(m => `${m.name} (${m.quantity} ${m.unit}) - ฿${m.price}`).join(', ') || undefined,
+          medicinesList: medicines,
+          cost: computedTotalCost,
+          clinicName,
+          weight: weightNum > 0 ? weightNum : undefined,
+          age: age.trim() || undefined,
+          notes,
+          proofImage: proofImage || undefined
+        });
+      }
 
       if (weightNum > 0 && onUpdatePetWeight) {
         onUpdatePetWeight(weightNum);
       }
 
-      setDate('');
-      setDiagnosis('');
-      setTreatmentDetail('');
-      setWeight('');
-      setAge('');
-      setMedicines([]);
-      setMedicalFee('');
-      setClinicName('');
-      setNotes('');
-      setProofImage(undefined);
-      setShowAddForm(false);
+      resetForm();
       onRefresh();
     } catch (err) {
       console.error(err);
@@ -206,7 +246,7 @@ export default function TreatmentList({ petId, treatments, onRefresh, isReadOnly
         <form id="add-treatment-form" onSubmit={handleSubmit} className="bg-amber-50/50 rounded-xl p-5 mb-6 border border-amber-100/50 animate-fade-in text-sm space-y-4">
           <h4 className="text-base font-bold text-amber-950 flex items-center gap-2 pb-2 border-b border-amber-100">
             <Activity className="w-5 h-5 text-amber-700" />
-            บันทึกประวัติการรักษาใหม่
+            {editingTreatment ? 'แก้ไขประวัติการรักษา' : 'บันทึกประวัติการรักษาใหม่'}
           </h4>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -420,8 +460,8 @@ export default function TreatmentList({ petId, treatments, onRefresh, isReadOnly
           <div className="flex justify-end gap-2 pt-3 border-t border-amber-100">
             <button
               type="button"
-              onClick={() => setShowAddForm(false)}
-              className="text-stone-700 bg-stone-100 hover:bg-stone-200 px-4 py-2 rounded-lg text-sm font-medium transition"
+              onClick={resetForm}
+              className="text-stone-700 bg-stone-100 hover:bg-stone-200 px-4 py-2 rounded-lg text-sm font-medium transition cursor-pointer"
             >
               ยกเลิก
             </button>
@@ -485,13 +525,22 @@ export default function TreatmentList({ petId, treatments, onRefresh, isReadOnly
                     </div>
                   </div>
                   {!isReadOnly && (
-                    <button
-                      onClick={() => handleDelete(tr.id)}
-                      className="text-stone-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-stone-100 transition shrink-0 cursor-pointer"
-                      title="ลบประวัตินี้"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => handleEdit(tr)}
+                        className="text-stone-400 hover:text-amber-600 p-1.5 rounded-lg hover:bg-stone-100 transition cursor-pointer"
+                        title="แก้ไขประวัตินี้"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(tr.id)}
+                        className="text-stone-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-stone-100 transition cursor-pointer"
+                        title="ลบประวัตินี้"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   )}
                 </div>
 

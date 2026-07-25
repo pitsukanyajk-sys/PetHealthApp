@@ -188,6 +188,38 @@ async function createRecord<T extends { id: string }>(
   return newRecord;
 }
 
+async function updateRecord<T extends { id: string }>(
+  storageKey: string,
+  apiEndpoint: string,
+  record: T
+): Promise<T> {
+  const local = getLocal<T>(storageKey);
+  const index = local.findIndex(r => r.id === record.id);
+  let updatedLocal: T[];
+  if (index >= 0) {
+    updatedLocal = [...local];
+    updatedLocal[index] = record;
+  } else {
+    updatedLocal = [record, ...local];
+  }
+  setLocal(storageKey, updatedLocal);
+
+  try {
+    const res = await fetch(`/api/${apiEndpoint}/${record.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(record)
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn(`API update ${apiEndpoint} failed, updated locally`, err);
+  }
+
+  return record;
+}
+
 async function deleteRecord<T extends { id: string }>(
   storageKey: string,
   apiEndpoint: string,
@@ -211,6 +243,9 @@ export function fetchVaccinations(petId?: string) {
 export function createVaccination(vac: Omit<Vaccination, 'id'>) {
   return createRecord<Vaccination>('pethealth_vaccinations', 'vaccinations', 'vac', vac);
 }
+export function updateVaccination(vac: Vaccination) {
+  return updateRecord<Vaccination>('pethealth_vaccinations', 'vaccinations', vac);
+}
 export function deleteVaccination(id: string) {
   return deleteRecord<Vaccination>('pethealth_vaccinations', 'vaccinations', id);
 }
@@ -221,6 +256,9 @@ export function fetchTreatments(petId?: string) {
 }
 export function createTreatment(tr: Omit<Treatment, 'id'>) {
   return createRecord<Treatment>('pethealth_treatments', 'treatments', 'tr', tr);
+}
+export function updateTreatment(tr: Treatment) {
+  return updateRecord<Treatment>('pethealth_treatments', 'treatments', tr);
 }
 export function deleteTreatment(id: string) {
   return deleteRecord<Treatment>('pethealth_treatments', 'treatments', id);
@@ -233,6 +271,9 @@ export function fetchTickFleas(petId?: string) {
 export function createTickFlea(tf: Omit<TickFlea, 'id'>) {
   return createRecord<TickFlea>('pethealth_tickfleas', 'tickfleas', 'tf', tf);
 }
+export function updateTickFlea(tf: TickFlea) {
+  return updateRecord<TickFlea>('pethealth_tickfleas', 'tickfleas', tf);
+}
 export function deleteTickFlea(id: string) {
   return deleteRecord<TickFlea>('pethealth_tickfleas', 'tickfleas', id);
 }
@@ -243,6 +284,9 @@ export function fetchDewormings(petId?: string) {
 }
 export function createDeworming(dw: Omit<Deworming, 'id'>) {
   return createRecord<Deworming>('pethealth_dewormings', 'dewormings', 'dw', dw);
+}
+export function updateDeworming(dw: Deworming) {
+  return updateRecord<Deworming>('pethealth_dewormings', 'dewormings', dw);
 }
 export function deleteDeworming(id: string) {
   return deleteRecord<Deworming>('pethealth_dewormings', 'dewormings', id);
@@ -255,6 +299,9 @@ export function fetchVaccineSymptoms(petId?: string) {
 export function createVaccineSymptom(vs: Omit<VaccineSymptom, 'id'>) {
   return createRecord<VaccineSymptom>('pethealth_vaccinesymptoms', 'vaccinesymptoms', 'vs', vs);
 }
+export function updateVaccineSymptom(vs: VaccineSymptom) {
+  return updateRecord<VaccineSymptom>('pethealth_vaccinesymptoms', 'vaccinesymptoms', vs);
+}
 export function deleteVaccineSymptom(id: string) {
   return deleteRecord<VaccineSymptom>('pethealth_vaccinesymptoms', 'vaccinesymptoms', id);
 }
@@ -265,6 +312,9 @@ export function fetchHeartworms(petId?: string) {
 }
 export function createHeartworm(hw: Omit<Heartworm, 'id'>) {
   return createRecord<Heartworm>('pethealth_heartworms', 'heartworms', 'hw', hw);
+}
+export function updateHeartworm(hw: Heartworm) {
+  return updateRecord<Heartworm>('pethealth_heartworms', 'heartworms', hw);
 }
 export function deleteHeartworm(id: string) {
   return deleteRecord<Heartworm>('pethealth_heartworms', 'heartworms', id);
@@ -277,6 +327,9 @@ export function fetchRoutineHealths(petId?: string) {
 export function createRoutineHealth(rh: Omit<RoutineHealth, 'id'>) {
   return createRecord<RoutineHealth>('pethealth_routinehealths', 'routinehealths', 'rh', rh);
 }
+export function updateRoutineHealth(rh: RoutineHealth) {
+  return updateRecord<RoutineHealth>('pethealth_routinehealths', 'routinehealths', rh);
+}
 export function deleteRoutineHealth(id: string) {
   return deleteRecord<RoutineHealth>('pethealth_routinehealths', 'routinehealths', id);
 }
@@ -287,6 +340,9 @@ export function fetchAnnualHealths(petId?: string) {
 }
 export function createAnnualHealth(ah: Omit<AnnualHealth, 'id'>) {
   return createRecord<AnnualHealth>('pethealth_annualhealths', 'annualhealths', 'ah', ah);
+}
+export function updateAnnualHealth(ah: AnnualHealth) {
+  return updateRecord<AnnualHealth>('pethealth_annualhealths', 'annualhealths', ah);
 }
 export function deleteAnnualHealth(id: string) {
   return deleteRecord<AnnualHealth>('pethealth_annualhealths', 'annualhealths', id);
@@ -299,6 +355,9 @@ export function fetchMemories(petId?: string) {
 export function createMemory(mem: Omit<Memory, 'id'>) {
   return createRecord<Memory>('pethealth_memories', 'memories', 'mem', mem);
 }
+export function updateMemory(mem: Memory) {
+  return updateRecord<Memory>('pethealth_memories', 'memories', mem);
+}
 export function deleteMemory(id: string) {
   return deleteRecord<Memory>('pethealth_memories', 'memories', id);
 }
@@ -309,6 +368,9 @@ export function fetchExpenses(petId?: string) {
 }
 export function createExpense(exp: Omit<Expense, 'id'>) {
   return createRecord<Expense>('pethealth_expenses', 'expenses', 'exp', exp);
+}
+export function updateExpense(exp: Expense) {
+  return updateRecord<Expense>('pethealth_expenses', 'expenses', exp);
 }
 export function deleteExpense(id: string) {
   return deleteRecord<Expense>('pethealth_expenses', 'expenses', id);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { RoutineHealth } from '../types';
-import { createRoutineHealth, deleteRoutineHealth } from '../lib/api';
-import { Plus, Trash2, Calendar, Scissors, Sparkles, TrendingUp, Info, Search, Camera, Image as ImageIcon } from 'lucide-react';
+import { createRoutineHealth, updateRoutineHealth, deleteRoutineHealth } from '../lib/api';
+import { Plus, Trash2, Pencil, Calendar, Scissors, Sparkles, TrendingUp, Info, Search, Camera, Image as ImageIcon } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import { formatThaiDate, calculateAge } from '../lib/utils';
 import ImageProofUploader from './ImageProofUploader';
@@ -32,6 +32,35 @@ export default function RoutineHealthComponent({ petId, records, onRefresh, isRe
   const [viewProofImage, setViewProofImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editingRecord, setEditingRecord] = useState<RoutineHealth | null>(null);
+
+  const resetForm = () => {
+    setEditingRecord(null);
+    setCategory('grooming');
+    setTitle('');
+    setDetail('');
+    setValue('');
+    setWeight('');
+    setAge('');
+    setCost('');
+    setNotes('');
+    setProofImage(undefined);
+    setShowForm(false);
+  };
+
+  const handleEdit = (rec: RoutineHealth) => {
+    setEditingRecord(rec);
+    setCategory(rec.category);
+    setTitle(rec.title || '');
+    setDetail(rec.detail || '');
+    setValue(rec.value || '');
+    setWeight(rec.weight ? String(rec.weight) : '');
+    setAge(rec.age || '');
+    setCost(rec.cost ? String(rec.cost) : '');
+    setNotes(rec.notes || '');
+    setProofImage(rec.proofImage);
+    setShowForm(true);
+  };
 
   // Auto age and weight
   useEffect(() => {
@@ -41,10 +70,10 @@ export default function RoutineHealthComponent({ petId, records, onRefresh, isRe
   }, [petBirthDate]);
 
   useEffect(() => {
-    if (showForm && petWeight) {
+    if (showForm && petWeight && !editingRecord) {
       setWeight(String(petWeight));
     }
-  }, [showForm, petWeight]);
+  }, [showForm, petWeight, editingRecord]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,35 +84,42 @@ export default function RoutineHealthComponent({ petId, records, onRefresh, isRe
     setLoading(true);
     const weightNum = parseFloat(weight) || 0;
     try {
-      await createRoutineHealth({
-        petId,
-        date: new Date().toISOString().split('T')[0],
-        category,
-        title,
-        detail,
-        value,
-        weight: weightNum > 0 ? weightNum : undefined,
-        age: age.trim() || undefined,
-        cost: cost ? Number(cost) : undefined,
-        notes,
-        proofImage: proofImage || undefined
-      });
+      if (editingRecord) {
+        await updateRoutineHealth({
+          ...editingRecord,
+          category,
+          title,
+          detail,
+          value,
+          weight: weightNum > 0 ? weightNum : undefined,
+          age: age.trim() || undefined,
+          cost: cost ? Number(cost) : undefined,
+          notes,
+          proofImage: proofImage || undefined
+        });
+      } else {
+        await createRoutineHealth({
+          petId,
+          date: new Date().toISOString().split('T')[0],
+          category,
+          title,
+          detail,
+          value,
+          weight: weightNum > 0 ? weightNum : undefined,
+          age: age.trim() || undefined,
+          cost: cost ? Number(cost) : undefined,
+          notes,
+          proofImage: proofImage || undefined
+        });
+      }
       if (weightNum > 0 && onUpdatePetWeight) {
         onUpdatePetWeight(weightNum);
       }
-      setTitle('');
-      setDetail('');
-      setValue('');
-      setWeight('');
-      setAge('');
-      setCost('');
-      setNotes('');
-      setProofImage(undefined);
-      setShowForm(false);
+      resetForm();
       onRefresh();
     } catch (err) {
       console.error(err);
-      alert('ไม่สามารถเพิ่มข้อมูลประวัติสุขภาพประจำตัวได้');
+      alert('ไม่สามารถบันทึกข้อมูลประวัติสุขภาพประจำตัวได้');
     } finally {
       setLoading(false);
     }
@@ -169,7 +205,9 @@ export default function RoutineHealthComponent({ petId, records, onRefresh, isRe
 
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-amber-50/40 rounded-xl p-4 mb-6 border border-amber-100/50 text-sm">
-          <h4 className="text-sm font-bold text-amber-900 mb-3">บันทึกการดูแลใหม่</h4>
+          <h4 className="text-sm font-bold text-amber-900 mb-3">
+            {editingRecord ? 'แก้ไขบันทึกการดูแล' : 'บันทึกการดูแลใหม่'}
+          </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-stone-600 mb-1">หมวดหมู่ดูแล *</label>
@@ -275,8 +313,8 @@ export default function RoutineHealthComponent({ petId, records, onRefresh, isRe
           <div className="flex justify-end gap-2 mt-4">
             <button
               type="button"
-              onClick={() => setShowForm(false)}
-              className="text-stone-600 bg-stone-100 hover:bg-stone-200 px-4 py-2 rounded-lg text-xs"
+              onClick={resetForm}
+              className="text-stone-600 bg-stone-100 hover:bg-stone-200 px-4 py-2 rounded-lg text-xs cursor-pointer"
             >
               ยกเลิก
             </button>
@@ -315,12 +353,22 @@ export default function RoutineHealthComponent({ petId, records, onRefresh, isRe
                     <h4 className="font-bold text-amber-950 text-sm mt-1">{rec.title}</h4>
                   </div>
                   {!isReadOnly && (
-                    <button
-                      onClick={() => handleDelete(rec.id)}
-                      className="text-stone-400 hover:text-red-500 p-1 rounded hover:bg-stone-100 cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => handleEdit(rec)}
+                        className="text-stone-400 hover:text-amber-600 p-1 rounded hover:bg-stone-100 cursor-pointer"
+                        title="แก้ไขประวัติ"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(rec.id)}
+                        className="text-stone-400 hover:text-red-500 p-1 rounded hover:bg-stone-100 cursor-pointer"
+                        title="ลบประวัติ"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   )}
                 </div>
 

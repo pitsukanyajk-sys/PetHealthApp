@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TickFlea, Deworming, Heartworm } from '../types';
-import { createTickFlea, deleteTickFlea, createDeworming, deleteDeworming, createHeartworm, deleteHeartworm } from '../lib/api';
-import { Plus, Trash2, Calendar, Sparkles, Bug, ShieldAlert, CheckCircle2, Heart, Search, Camera, Image as ImageIcon } from 'lucide-react';
+import { createTickFlea, updateTickFlea, deleteTickFlea, createDeworming, updateDeworming, deleteDeworming, createHeartworm, updateHeartworm, deleteHeartworm } from '../lib/api';
+import { Plus, Trash2, Pencil, Calendar, Sparkles, Bug, ShieldAlert, CheckCircle2, Heart, Search, Camera, Image as ImageIcon } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import { formatThaiDate, calculateAge } from '../lib/utils';
 import ImageProofUploader from './ImageProofUploader';
@@ -32,6 +32,31 @@ export default function ParasiteList({ petId, tickFleas, dewormings, heartworms,
   const [tickAge, setTickAge] = useState('');
   const [tickNotes, setTickNotes] = useState('');
   const [tickProofImage, setTickProofImage] = useState<string | undefined>();
+  const [editingTick, setEditingTick] = useState<TickFlea | null>(null);
+
+  const resetTickForm = () => {
+    setEditingTick(null);
+    setTickProduct('');
+    setTickDate('');
+    setTickDueDate('');
+    setTickWeight('');
+    setTickAge('');
+    setTickNotes('');
+    setTickProofImage(undefined);
+    setShowTickForm(false);
+  };
+
+  const handleTickEdit = (tf: TickFlea) => {
+    setEditingTick(tf);
+    setTickProduct(tf.productName || '');
+    setTickDate(tf.date || '');
+    setTickDueDate(tf.dueDate || '');
+    setTickWeight(tf.weight ? String(tf.weight) : '');
+    setTickAge(tf.age || '');
+    setTickNotes(tf.notes || '');
+    setTickProofImage(tf.proofImage);
+    setShowTickForm(true);
+  };
 
   // Deworming States
   const [showDewormForm, setShowDewormForm] = useState(false);
@@ -42,6 +67,31 @@ export default function ParasiteList({ petId, tickFleas, dewormings, heartworms,
   const [dewormAge, setDewormAge] = useState('');
   const [dewormNotes, setDewormNotes] = useState('');
   const [dewormProofImage, setDewormProofImage] = useState<string | undefined>();
+  const [editingDeworm, setEditingDeworm] = useState<Deworming | null>(null);
+
+  const resetDewormForm = () => {
+    setEditingDeworm(null);
+    setDewormMedicine('');
+    setDewormDate('');
+    setDewormDueDate('');
+    setDewormWeight('');
+    setDewormAge('');
+    setDewormNotes('');
+    setDewormProofImage(undefined);
+    setShowDewormForm(false);
+  };
+
+  const handleDewormEdit = (dw: Deworming) => {
+    setEditingDeworm(dw);
+    setDewormMedicine(dw.medicineName || '');
+    setDewormDate(dw.date || '');
+    setDewormDueDate(dw.dueDate || '');
+    setDewormWeight(dw.weight ? String(dw.weight) : '');
+    setDewormAge(dw.age || '');
+    setDewormNotes(dw.notes || '');
+    setDewormProofImage(dw.proofImage);
+    setShowDewormForm(true);
+  };
 
   // Heartworm States
   const [showHeartwormForm, setShowHeartwormForm] = useState(false);
@@ -52,6 +102,31 @@ export default function ParasiteList({ petId, tickFleas, dewormings, heartworms,
   const [hwAge, setHwAge] = useState('');
   const [hwNotes, setHwNotes] = useState('');
   const [hwProofImage, setHwProofImage] = useState<string | undefined>();
+  const [editingHw, setEditingHw] = useState<Heartworm | null>(null);
+
+  const resetHwForm = () => {
+    setEditingHw(null);
+    setHwProduct('');
+    setHwDate('');
+    setHwDueDate('');
+    setHwWeight('');
+    setHwAge('');
+    setHwNotes('');
+    setHwProofImage(undefined);
+    setShowHeartwormForm(false);
+  };
+
+  const handleHwEdit = (hw: Heartworm) => {
+    setEditingHw(hw);
+    setHwProduct(hw.productName || '');
+    setHwDate(hw.date || '');
+    setHwDueDate(hw.dueDate || '');
+    setHwWeight(hw.weight ? String(hw.weight) : '');
+    setHwAge(hw.age || '');
+    setHwNotes(hw.notes || '');
+    setHwProofImage(hw.proofImage);
+    setShowHeartwormForm(true);
+  };
 
   // Auto-fill age & weight
   useEffect(() => {
@@ -86,25 +161,31 @@ export default function ParasiteList({ petId, tickFleas, dewormings, heartworms,
     setLoading(true);
     const weightNum = parseFloat(tickWeight) || 0;
     try {
-      await createTickFlea({
-        petId,
-        productName: tickProduct,
-        date: tickDate,
-        dueDate: tickDueDate,
-        weight: weightNum > 0 ? weightNum : undefined,
-        age: tickAge.trim() || undefined,
-        notes: tickNotes,
-        proofImage: tickProofImage || undefined
-      });
+      if (editingTick) {
+        await updateTickFlea({
+          ...editingTick,
+          productName: tickProduct,
+          date: tickDate,
+          dueDate: tickDueDate,
+          weight: weightNum > 0 ? weightNum : undefined,
+          age: tickAge.trim() || undefined,
+          notes: tickNotes,
+          proofImage: tickProofImage || undefined
+        });
+      } else {
+        await createTickFlea({
+          petId,
+          productName: tickProduct,
+          date: tickDate,
+          dueDate: tickDueDate,
+          weight: weightNum > 0 ? weightNum : undefined,
+          age: tickAge.trim() || undefined,
+          notes: tickNotes,
+          proofImage: tickProofImage || undefined
+        });
+      }
       if (weightNum > 0 && onUpdatePetWeight) onUpdatePetWeight(weightNum);
-      setTickProduct('');
-      setTickDate('');
-      setTickDueDate('');
-      setTickWeight('');
-      setTickAge('');
-      setTickNotes('');
-      setTickProofImage(undefined);
-      setShowTickForm(false);
+      resetTickForm();
       onRefresh();
     } catch (err) {
       console.error(err);
@@ -123,25 +204,31 @@ export default function ParasiteList({ petId, tickFleas, dewormings, heartworms,
     setLoading(true);
     const weightNum = parseFloat(dewormWeight) || 0;
     try {
-      await createDeworming({
-        petId,
-        medicineName: dewormMedicine,
-        date: dewormDate,
-        dueDate: dewormDueDate,
-        weight: weightNum > 0 ? weightNum : undefined,
-        age: dewormAge.trim() || undefined,
-        notes: dewormNotes,
-        proofImage: dewormProofImage || undefined
-      });
+      if (editingDeworm) {
+        await updateDeworming({
+          ...editingDeworm,
+          medicineName: dewormMedicine,
+          date: dewormDate,
+          dueDate: dewormDueDate,
+          weight: weightNum > 0 ? weightNum : undefined,
+          age: dewormAge.trim() || undefined,
+          notes: dewormNotes,
+          proofImage: dewormProofImage || undefined
+        });
+      } else {
+        await createDeworming({
+          petId,
+          medicineName: dewormMedicine,
+          date: dewormDate,
+          dueDate: dewormDueDate,
+          weight: weightNum > 0 ? weightNum : undefined,
+          age: dewormAge.trim() || undefined,
+          notes: dewormNotes,
+          proofImage: dewormProofImage || undefined
+        });
+      }
       if (weightNum > 0 && onUpdatePetWeight) onUpdatePetWeight(weightNum);
-      setDewormMedicine('');
-      setDewormDate('');
-      setDewormDueDate('');
-      setDewormWeight('');
-      setDewormAge('');
-      setDewormNotes('');
-      setDewormProofImage(undefined);
-      setShowDewormForm(false);
+      resetDewormForm();
       onRefresh();
     } catch (err) {
       console.error(err);
@@ -160,25 +247,31 @@ export default function ParasiteList({ petId, tickFleas, dewormings, heartworms,
     setLoading(true);
     const weightNum = parseFloat(hwWeight) || 0;
     try {
-      await createHeartworm({
-        petId,
-        productName: hwProduct,
-        date: hwDate,
-        dueDate: hwDueDate,
-        weight: weightNum > 0 ? weightNum : undefined,
-        age: hwAge.trim() || undefined,
-        notes: hwNotes,
-        proofImage: hwProofImage || undefined
-      });
+      if (editingHw) {
+        await updateHeartworm({
+          ...editingHw,
+          productName: hwProduct,
+          date: hwDate,
+          dueDate: hwDueDate,
+          weight: weightNum > 0 ? weightNum : undefined,
+          age: hwAge.trim() || undefined,
+          notes: hwNotes,
+          proofImage: hwProofImage || undefined
+        });
+      } else {
+        await createHeartworm({
+          petId,
+          productName: hwProduct,
+          date: hwDate,
+          dueDate: hwDueDate,
+          weight: weightNum > 0 ? weightNum : undefined,
+          age: hwAge.trim() || undefined,
+          notes: hwNotes,
+          proofImage: hwProofImage || undefined
+        });
+      }
       if (weightNum > 0 && onUpdatePetWeight) onUpdatePetWeight(weightNum);
-      setHwProduct('');
-      setHwDate('');
-      setHwDueDate('');
-      setHwWeight('');
-      setHwAge('');
-      setHwNotes('');
-      setHwProofImage(undefined);
-      setShowHeartwormForm(false);
+      resetHwForm();
       onRefresh();
     } catch (err) {
       console.error(err);
@@ -286,7 +379,9 @@ export default function ParasiteList({ petId, tickFleas, dewormings, heartworms,
 
         {showTickForm && (
           <form onSubmit={handleTickSubmit} className="bg-amber-50/40 rounded-xl p-4 mb-6 border border-amber-100/50 animate-fade-in text-xs">
-            <h4 className="text-xs font-bold text-amber-900 mb-2">บันทึกยาเห็บหมัด</h4>
+            <h4 className="text-xs font-bold text-amber-900 mb-2">
+              {editingTick ? 'แก้ไขบันทึกยาเห็บหมัด' : 'บันทึกยาเห็บหมัด'}
+            </h4>
             <div className="grid grid-cols-1 gap-2.5">
               <div>
                 <label className="block text-[10px] font-medium text-stone-600 mb-0.5">ตัวยา / ยี่ห้อที่ใช้ *</label>
@@ -360,8 +455,8 @@ export default function ParasiteList({ petId, tickFleas, dewormings, heartworms,
             <div className="flex justify-end gap-2 mt-3">
               <button
                 type="button"
-                onClick={() => setShowTickForm(false)}
-                className="text-stone-600 bg-stone-100 hover:bg-stone-200 px-3 py-1.5 rounded-lg text-xs"
+                onClick={resetTickForm}
+                className="text-stone-600 bg-stone-100 hover:bg-stone-200 px-3 py-1.5 rounded-lg text-xs cursor-pointer"
               >
                 ยกเลิก
               </button>
@@ -406,13 +501,22 @@ export default function ParasiteList({ petId, tickFleas, dewormings, heartworms,
                     </div>
                   </div>
                   {!isReadOnly && (
-                    <button
-                      onClick={() => handleTickDelete(tf.id)}
-                      className="text-stone-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-stone-100 transition-colors shrink-0 cursor-pointer"
-                      title="ลบข้อมูล"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => handleTickEdit(tf)}
+                        className="text-stone-400 hover:text-amber-600 p-1.5 rounded-lg hover:bg-stone-100 transition-colors cursor-pointer"
+                        title="แก้ไขข้อมูล"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleTickDelete(tf.id)}
+                        className="text-stone-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-stone-100 transition-colors cursor-pointer"
+                        title="ลบข้อมูล"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   )}
                 </div>
                 
@@ -472,7 +576,9 @@ export default function ParasiteList({ petId, tickFleas, dewormings, heartworms,
 
         {showDewormForm && (
           <form onSubmit={handleDewormSubmit} className="bg-amber-50/40 rounded-xl p-4 mb-6 border border-amber-100/50 animate-fade-in text-xs">
-            <h4 className="text-xs font-bold text-amber-900 mb-2">บันทึกยาถ่ายพยาธิ</h4>
+            <h4 className="text-xs font-bold text-amber-900 mb-2">
+              {editingDeworm ? 'แก้ไขบันทึกยาถ่ายพยาธิ' : 'บันทึกยาถ่ายพยาธิ'}
+            </h4>
             <div className="grid grid-cols-1 gap-2.5">
               <div>
                 <label className="block text-[10px] font-medium text-stone-600 mb-0.5">ชื่อตัวยาที่ใช้ *</label>
@@ -546,8 +652,8 @@ export default function ParasiteList({ petId, tickFleas, dewormings, heartworms,
             <div className="flex justify-end gap-2 mt-3">
               <button
                 type="button"
-                onClick={() => setShowDewormForm(false)}
-                className="text-stone-600 bg-stone-100 hover:bg-stone-200 px-3 py-1.5 rounded-lg text-xs"
+                onClick={resetDewormForm}
+                className="text-stone-600 bg-stone-100 hover:bg-stone-200 px-3 py-1.5 rounded-lg text-xs cursor-pointer"
               >
                 ยกเลิก
               </button>
@@ -592,13 +698,22 @@ export default function ParasiteList({ petId, tickFleas, dewormings, heartworms,
                     </div>
                   </div>
                   {!isReadOnly && (
-                    <button
-                      onClick={() => handleDewormDelete(dw.id)}
-                      className="text-stone-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-stone-100 transition-colors shrink-0 cursor-pointer"
-                      title="ลบข้อมูล"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => handleDewormEdit(dw)}
+                        className="text-stone-400 hover:text-amber-600 p-1.5 rounded-lg hover:bg-stone-100 transition-colors cursor-pointer"
+                        title="แก้ไขข้อมูล"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDewormDelete(dw.id)}
+                        className="text-stone-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-stone-100 transition-colors cursor-pointer"
+                        title="ลบข้อมูล"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   )}
                 </div>
                 
@@ -658,7 +773,9 @@ export default function ParasiteList({ petId, tickFleas, dewormings, heartworms,
 
         {showHeartwormForm && (
           <form onSubmit={handleHeartwormSubmit} className="bg-amber-50/40 rounded-xl p-4 mb-6 border border-amber-100/50 animate-fade-in text-xs">
-            <h4 className="text-xs font-bold text-amber-900 mb-2">บันทึกป้องกันพยาธิหนอนหัวใจ</h4>
+            <h4 className="text-xs font-bold text-amber-900 mb-2">
+              {editingHw ? 'แก้ไขบันทึกป้องกันพยาธิหนอนหัวใจ' : 'บันทึกป้องกันพยาธิหนอนหัวใจ'}
+            </h4>
             <div className="grid grid-cols-1 gap-2.5">
               <div>
                 <label className="block text-[10px] font-medium text-stone-600 mb-0.5">ตัวยา / ยี่ห้อที่ใช้ *</label>
@@ -732,8 +849,8 @@ export default function ParasiteList({ petId, tickFleas, dewormings, heartworms,
             <div className="flex justify-end gap-2 mt-3">
               <button
                 type="button"
-                onClick={() => setShowHeartwormForm(false)}
-                className="text-stone-600 bg-stone-100 hover:bg-stone-200 px-3 py-1.5 rounded-lg text-xs"
+                onClick={resetHwForm}
+                className="text-stone-600 bg-stone-100 hover:bg-stone-200 px-3 py-1.5 rounded-lg text-xs cursor-pointer"
               >
                 ยกเลิก
               </button>
@@ -778,13 +895,22 @@ export default function ParasiteList({ petId, tickFleas, dewormings, heartworms,
                     </div>
                   </div>
                   {!isReadOnly && (
-                    <button
-                      onClick={() => handleHeartwormDelete(hw.id)}
-                      className="text-stone-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-stone-100 transition-colors shrink-0 cursor-pointer"
-                      title="ลบข้อมูล"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => handleHwEdit(hw)}
+                        className="text-stone-400 hover:text-amber-600 p-1.5 rounded-lg hover:bg-stone-100 transition-colors cursor-pointer"
+                        title="แก้ไขข้อมูล"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleHeartwormDelete(hw.id)}
+                        className="text-stone-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-stone-100 transition-colors cursor-pointer"
+                        title="ลบข้อมูล"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   )}
                 </div>
                 
