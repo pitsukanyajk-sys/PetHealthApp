@@ -70,7 +70,7 @@ export default function VaccineList({ petId, vaccines, onRefresh, isReadOnly, pe
     'วัคซีนพิษสุนัขบ้า (Rabies)',
     'วัคซีนรวมสุนัข 5-6 โรค',
     'วัคซีนไข้หัดสุนัข (Distemper)',
-    'วัคซีนไข้กัดสุนัขและโรคลำไส้อักเสบ (Puppy DP)',
+    'วัคซีนไข้หัดสุนัขและโรคลำไส้อักเสบ (Puppy DP)',
     'วัคซีนตับอักเสบติดต่อ (Hepatitis)',
     'วัคซีนป้องกันโรคหลอดลมอักเสบติดต่อ (Kennel Cough)',
     'วัคซีนลำไส้อักเสบติดต่อ (Parvovirus)',
