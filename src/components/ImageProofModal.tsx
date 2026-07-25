@@ -11,9 +11,9 @@ export default function ImageProofModal({ imageUrl, title = 'หลักฐา�
   if (!imageUrl) return null;
 
   return (
-    <div className="fixed inset-0 bg-stone-900/80 backdrop-blur-sm flex items-center justify-center p-4 z-[200] animate-fade-in" onClick={onClose}>
+    <div className="fixed inset-0 bg-stone-900/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[200] overflow-y-auto animate-fade-in" onClick={onClose}>
       <div 
-        className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] shadow-2xl border border-stone-200 overflow-hidden flex flex-col animate-scale-up"
+        className="bg-white rounded-2xl max-w-2xl w-full max-h-[88vh] shadow-2xl border border-stone-200 overflow-hidden flex flex-col animate-scale-up my-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

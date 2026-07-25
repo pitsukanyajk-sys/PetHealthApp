@@ -827,14 +827,14 @@ export default function App() {
       
       {/* Add / Edit Pet Form Overlay */}
       {showPetForm && (
-        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[100] animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-amber-100/80 overflow-hidden animate-scale-up">
+        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[100] overflow-y-auto animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[88vh] flex flex-col shadow-2xl border border-amber-100/80 overflow-hidden animate-scale-up my-auto">
             
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-amber-800 to-amber-950 px-6 py-4 text-white flex justify-between items-center shrink-0">
-              <h3 className="font-bold font-display text-lg flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-amber-300" />
-                {isEditingPet ? 'แก้ไขโปรไฟล์น้อง' : 'ต้อนรับสมาชิกใหม่'}
+            <div className="bg-gradient-to-r from-amber-800 to-amber-950 px-5 sm:px-6 py-3.5 sm:py-4 text-white flex justify-between items-center shrink-0">
+              <h3 className="font-bold font-display text-base sm:text-lg flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-amber-300 shrink-0" />
+                <span>{isEditingPet ? 'แก้ไขโปรไฟล์น้อง' : 'ต้อนรับสมาชิกใหม่'}</span>
               </h3>
               <button
                 type="button"

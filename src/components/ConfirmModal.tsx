@@ -29,8 +29,8 @@ export default function ConfirmModal({
     : 'bg-amber-700 hover:bg-amber-800 text-white hover:shadow-md active:scale-95 transition-all';
 
   return (
-    <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[9999] animate-fade-in">
-      <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-amber-100/80 space-y-4">
+    <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[9999] overflow-y-auto animate-fade-in">
+      <div className="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-xl border border-amber-100/80 space-y-4 my-auto max-h-[88vh] overflow-y-auto">
         <div className="flex gap-3 items-start">
           <span className={`p-2.5 rounded-xl border shrink-0 ${
             type === 'danger' ? 'bg-red-50 border-red-100 text-red-600' : 'bg-amber-50 border-amber-100 text-amber-700'

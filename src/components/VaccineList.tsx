@@ -553,19 +553,19 @@ export default function VaccineList({ petId, vaccines, onRefresh, isReadOnly, pe
 
       {/* Vaccine Detail Popup Modal */}
       {selectedVaccine && (
-        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[110] animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-amber-100/80 overflow-hidden animate-scale-up">
+        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[110] overflow-y-auto animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full max-h-[88vh] flex flex-col shadow-2xl border border-amber-100/80 overflow-hidden animate-scale-up my-auto">
             
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-amber-700 to-amber-900 px-6 py-4 text-white flex justify-between items-center shrink-0">
-              <h3 className="font-bold font-display text-lg flex items-center gap-2">
-                <Syringe className="w-5 h-5 text-amber-300" />
-                รายละเอียดประวัติวัคซีน
+            <div className="bg-gradient-to-r from-amber-700 to-amber-900 px-5 sm:px-6 py-3.5 sm:py-4 text-white flex justify-between items-center shrink-0">
+              <h3 className="font-bold font-display text-base sm:text-lg flex items-center gap-2">
+                <Syringe className="w-5 h-5 text-amber-300 shrink-0" />
+                <span>รายละเอียดประวัติวัคซีน</span>
               </h3>
               <button
                 type="button"
                 onClick={() => setSelectedVaccine(null)}
-                className="text-amber-100 hover:text-white hover:bg-white/10 p-1.5 rounded-lg transition"
+                className="text-amber-100 hover:text-white hover:bg-white/10 p-1.5 rounded-lg transition cursor-pointer"
                 title="ปิด"
               >
                 <X className="w-5 h-5" />
@@ -573,7 +573,7 @@ export default function VaccineList({ petId, vaccines, onRefresh, isReadOnly, pe
             </div>
 
             {/* Modal Content */}
-            <div className="p-6 space-y-4 text-stone-850">
+            <div className="p-5 sm:p-6 space-y-4 text-stone-850 overflow-y-auto flex-1">
               {/* Row 1: ชื่อวัคซีน */}
               <div>
                 <span className="text-xs text-stone-400 uppercase font-semibold block tracking-wider mb-0.5">ชื่อวัคซีน</span>
@@ -701,8 +701,16 @@ export default function VaccineList({ petId, vaccines, onRefresh, isReadOnly, pe
               )}
             </div>
 
-            {/* Modal Spacer instead of Footer */}
-            <div className="h-6 bg-stone-50 border-t border-stone-100 shrink-0" />
+            {/* Modal Footer with explicit close button */}
+            <div className="p-3 sm:px-6 bg-stone-50 border-t border-stone-100 shrink-0 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setSelectedVaccine(null)}
+                className="bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-sm cursor-pointer"
+              >
+                ปิดหน้าต่าง
+              </button>
+            </div>
 
           </div>
         </div>
