@@ -59,10 +59,28 @@ export async function fetchPets(): Promise<Pet[]> {
   try {
     const res = await fetch('/api/pets');
     if (res.ok) {
-      const serverPets = await res.json();
-      const merged = mergeData(serverPets, local);
-      setLocal('pethealth_pets', merged);
-      return merged;
+      const serverPets: Pet[] = await res.json();
+      
+      // Auto-sync local pets to Supabase if missing from server
+      const serverIds = new Set(serverPets.map(p => p.id));
+      const unSynced = local.filter(p => !serverIds.has(p.id));
+      if (unSynced.length > 0) {
+        for (const pet of unSynced) {
+          try {
+            await fetch('/api/pets', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(pet)
+            });
+            serverPets.push(pet);
+          } catch (e) {
+            console.warn('Failed to sync local pet to server', e);
+          }
+        }
+      }
+
+      setLocal('pethealth_pets', serverPets);
+      return serverPets;
     }
   } catch (err) {
     console.warn('API fetchPets failed, using local storage fallback', err);
@@ -74,10 +92,6 @@ export async function createPet(pet: Omit<Pet, 'id'>): Promise<Pet> {
   const id = 'pet_' + Math.random().toString(36).substr(2, 9);
   const newPet: Pet = { ...pet, id } as Pet;
 
-  const local = getLocal<Pet>('pethealth_pets');
-  const updatedLocal = [newPet, ...local];
-  setLocal('pethealth_pets', updatedLocal);
-
   try {
     const res = await fetch('/api/pets', {
       method: 'POST',
@@ -86,27 +100,20 @@ export async function createPet(pet: Omit<Pet, 'id'>): Promise<Pet> {
     });
     if (res.ok) {
       const serverPet = await res.json();
+      const local = getLocal<Pet>('pethealth_pets');
+      setLocal('pethealth_pets', [serverPet, ...local.filter(p => p.id !== serverPet.id)]);
       return serverPet;
     }
   } catch (err) {
     console.warn('API createPet failed, saved locally', err);
   }
 
+  const local = getLocal<Pet>('pethealth_pets');
+  setLocal('pethealth_pets', [newPet, ...local]);
   return newPet;
 }
 
 export async function updatePet(pet: Pet): Promise<Pet> {
-  const local = getLocal<Pet>('pethealth_pets');
-  const index = local.findIndex(p => p.id === pet.id);
-  let updatedLocal: Pet[];
-  if (index >= 0) {
-    updatedLocal = [...local];
-    updatedLocal[index] = pet;
-  } else {
-    updatedLocal = [pet, ...local];
-  }
-  setLocal('pethealth_pets', updatedLocal);
-
   try {
     const res = await fetch(`/api/pets/${pet.id}`, {
       method: 'PUT',
@@ -115,12 +122,24 @@ export async function updatePet(pet: Pet): Promise<Pet> {
     });
     if (res.ok) {
       const serverPet = await res.json();
+      const local = getLocal<Pet>('pethealth_pets');
+      const index = local.findIndex(p => p.id === serverPet.id);
+      const updatedLocal = [...local];
+      if (index >= 0) updatedLocal[index] = serverPet;
+      else updatedLocal.unshift(serverPet);
+      setLocal('pethealth_pets', updatedLocal);
       return serverPet;
     }
   } catch (err) {
     console.warn('API updatePet failed, updated locally', err);
   }
 
+  const local = getLocal<Pet>('pethealth_pets');
+  const index = local.findIndex(p => p.id === pet.id);
+  const updatedLocal = [...local];
+  if (index >= 0) updatedLocal[index] = pet;
+  else updatedLocal.unshift(pet);
+  setLocal('pethealth_pets', updatedLocal);
   return pet;
 }
 
@@ -149,10 +168,28 @@ async function fetchRecords<T extends { id: string; petId: string }>(
     const url = petId ? `/api/${apiEndpoint}?petId=${petId}` : `/api/${apiEndpoint}`;
     const res = await fetch(url);
     if (res.ok) {
-      const serverData = await res.json();
-      const merged = mergeData(serverData, local);
-      setLocal(storageKey, merged);
-      return petId ? merged.filter(r => r.petId === petId) : merged;
+      const serverData: T[] = await res.json();
+
+      // Auto-sync any local-only items to Supabase
+      const serverIds = new Set(serverData.map(r => r.id));
+      const unSynced = local.filter(r => !serverIds.has(r.id));
+      if (unSynced.length > 0) {
+        for (const item of unSynced) {
+          try {
+            await fetch(`/api/${apiEndpoint}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(item)
+            });
+            serverData.push(item);
+          } catch (e) {
+            console.warn(`Failed to auto-sync local ${apiEndpoint} item to server`, e);
+          }
+        }
+      }
+
+      setLocal(storageKey, serverData);
+      return petId ? serverData.filter(r => r.petId === petId) : serverData;
     }
   } catch (err) {
     console.warn(`API fetch ${apiEndpoint} failed, using local storage`, err);
@@ -169,9 +206,6 @@ async function createRecord<T extends { id: string }>(
   const id = prefix + '_' + Math.random().toString(36).substr(2, 9);
   const newRecord = { ...recordData, id } as unknown as T;
 
-  const local = getLocal<T>(storageKey);
-  setLocal(storageKey, [newRecord, ...local]);
-
   try {
     const res = await fetch(`/api/${apiEndpoint}`, {
       method: 'POST',
@@ -179,12 +213,17 @@ async function createRecord<T extends { id: string }>(
       body: JSON.stringify(newRecord)
     });
     if (res.ok) {
-      return await res.json();
+      const created: T = await res.json();
+      const local = getLocal<T>(storageKey);
+      setLocal(storageKey, [created, ...local.filter(r => r.id !== created.id)]);
+      return created;
     }
   } catch (err) {
     console.warn(`API create ${apiEndpoint} failed, saved locally`, err);
   }
 
+  const local = getLocal<T>(storageKey);
+  setLocal(storageKey, [newRecord, ...local]);
   return newRecord;
 }
 
@@ -193,17 +232,6 @@ async function updateRecord<T extends { id: string }>(
   apiEndpoint: string,
   record: T
 ): Promise<T> {
-  const local = getLocal<T>(storageKey);
-  const index = local.findIndex(r => r.id === record.id);
-  let updatedLocal: T[];
-  if (index >= 0) {
-    updatedLocal = [...local];
-    updatedLocal[index] = record;
-  } else {
-    updatedLocal = [record, ...local];
-  }
-  setLocal(storageKey, updatedLocal);
-
   try {
     const res = await fetch(`/api/${apiEndpoint}/${record.id}`, {
       method: 'PUT',
@@ -211,12 +239,25 @@ async function updateRecord<T extends { id: string }>(
       body: JSON.stringify(record)
     });
     if (res.ok) {
-      return await res.json();
+      const updated: T = await res.json();
+      const local = getLocal<T>(storageKey);
+      const index = local.findIndex(r => r.id === updated.id);
+      const updatedLocal = [...local];
+      if (index >= 0) updatedLocal[index] = updated;
+      else updatedLocal.unshift(updated);
+      setLocal(storageKey, updatedLocal);
+      return updated;
     }
   } catch (err) {
     console.warn(`API update ${apiEndpoint} failed, updated locally`, err);
   }
 
+  const local = getLocal<T>(storageKey);
+  const index = local.findIndex(r => r.id === record.id);
+  const updatedLocal = [...local];
+  if (index >= 0) updatedLocal[index] = record;
+  else updatedLocal.unshift(record);
+  setLocal(storageKey, updatedLocal);
   return record;
 }
 

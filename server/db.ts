@@ -26,15 +26,20 @@ const DATA_FILE = path.join(DATA_DIR, 'pets_db.json');
 
 // Supabase Online Database Client setup
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://rsbrgjkopuizvwindlkl.supabase.co';
-const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzYnJnamtvcHVpenZ3aW5kbGtsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4ODg0MDEsImV4cCI6MjEwMDQ2NDQwMX0.2LY_5QOQOHVyMpNZL5lCBBDtsKdfxNXRIFA8YA5sHUs';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzYnJnamtvcHVpenZ3aW5kbGtsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDg4ODQwMSwiZXhwIjoyMTAwNDY0NDAxfQ.9UUycBkCUykffyGwCAZmRTWnKKlBgqQEjSOgtWZWhXM';
 
 const useSupabase = !!(supabaseUrl && supabaseKey);
 let supabase: SupabaseClient | null = null;
 
 if (useSupabase) {
   try {
-    supabase = createClient(supabaseUrl, supabaseKey);
-    console.log('Supabase client initialized successfully!');
+    supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false
+      }
+    });
+    console.log('Supabase client initialized successfully with service role capabilities!');
   } catch (err) {
     console.error('Failed to initialize Supabase client:', err);
   }
@@ -67,9 +72,20 @@ function cleanRecord(record: any) {
   if (!record || typeof record !== 'object') return record;
   const clean: any = {};
   for (const [key, val] of Object.entries(record)) {
-    if (val !== undefined) {
-      clean[key] = val;
+    if (val === undefined || val === null || val === '') {
+      continue;
     }
+    if (typeof val === 'number' && isNaN(val)) {
+      continue;
+    }
+    if ((key === 'weight' || key === 'cost' || key === 'price' || key === 'quantity') && typeof val === 'string') {
+      const num = parseFloat(val);
+      if (!isNaN(num)) {
+        clean[key] = num;
+      }
+      continue;
+    }
+    clean[key] = val;
   }
   return clean;
 }
@@ -78,9 +94,12 @@ async function supabaseInsert<T>(tableName: string, record: any): Promise<T | nu
   if (!useSupabase || !supabase) return null;
   try {
     const payload = cleanRecord(record);
-    const { error } = await supabase.from(tableName).insert([payload]);
-    if (!error) return record as T;
-    console.error(`Supabase insert error on ${tableName}:`, error.message);
+    const { data, error } = await supabase.from(tableName).insert([payload]).select();
+    if (!error) {
+      console.log(`Supabase insert success on ${tableName}`);
+      return (data && data[0]) ? (data[0] as T) : (record as T);
+    }
+    console.error(`Supabase insert error on ${tableName}:`, error.message, error.details, error.hint);
     return null;
   } catch (err) {
     console.error(`Supabase insert exception on ${tableName}:`, err);
@@ -92,9 +111,12 @@ async function supabaseUpdate<T>(tableName: string, id: string, record: any): Pr
   if (!useSupabase || !supabase) return null;
   try {
     const payload = cleanRecord(record);
-    const { error } = await supabase.from(tableName).update(payload).eq('id', id);
-    if (!error) return record as T;
-    console.error(`Supabase update error on ${tableName}:`, error.message);
+    const { data, error } = await supabase.from(tableName).update(payload).eq('id', id).select();
+    if (!error) {
+      console.log(`Supabase update success on ${tableName}`);
+      return (data && data[0]) ? (data[0] as T) : (record as T);
+    }
+    console.error(`Supabase update error on ${tableName}:`, error.message, error.details, error.hint);
     return null;
   } catch (err) {
     console.error(`Supabase update exception on ${tableName}:`, err);
