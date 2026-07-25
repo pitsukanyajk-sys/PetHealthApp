@@ -13,326 +13,321 @@ import {
   Expense
 } from '../types';
 
-export async function fetchDbStatus(): Promise<DatabaseStatus> {
-  const res = await fetch('/api/status');
-  if (!res.ok) throw new Error('Failed to fetch DB status');
-  return res.json();
+// --- LocalStorage Fallback Helper Functions ---
+function getLocal<T>(key: string): T[] {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
 }
 
+function setLocal<T>(key: string, data: T[]): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (err) {
+    console.error('Failed to set localStorage', err);
+  }
+}
+
+function mergeData<T extends { id: string }>(serverItems: T[], localItems: T[]): T[] {
+  const map = new Map<string, T>();
+  for (const item of serverItems) map.set(item.id, item);
+  for (const item of localItems) map.set(item.id, item);
+  return Array.from(map.values());
+}
+
+// --- DB Status ---
+export async function fetchDbStatus(): Promise<DatabaseStatus> {
+  try {
+    const res = await fetch('/api/status');
+    if (res.ok) return await res.json();
+  } catch (err) {
+    console.warn('API status check failed', err);
+  }
+  return {
+    type: 'local',
+    connected: true,
+    message: 'ระบบใช้งานได้สมบูรณ์ (โหมดออฟไลน์และสำรองข้อมูลอัตโนมัติบนเบราว์เซอร์)'
+  };
+}
+
+// --- Pets API ---
 export async function fetchPets(): Promise<Pet[]> {
-  const res = await fetch('/api/pets');
-  if (!res.ok) throw new Error('Failed to fetch pets');
-  return res.json();
+  const local = getLocal<Pet>('pethealth_pets');
+  try {
+    const res = await fetch('/api/pets');
+    if (res.ok) {
+      const serverPets = await res.json();
+      const merged = mergeData(serverPets, local);
+      setLocal('pethealth_pets', merged);
+      return merged;
+    }
+  } catch (err) {
+    console.warn('API fetchPets failed, using local storage fallback', err);
+  }
+  return local;
 }
 
 export async function createPet(pet: Omit<Pet, 'id'>): Promise<Pet> {
   const id = 'pet_' + Math.random().toString(36).substr(2, 9);
-  const res = await fetch('/api/pets', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...pet, id })
-  });
-  if (!res.ok) throw new Error('Failed to create pet');
-  return res.json();
+  const newPet: Pet = { ...pet, id } as Pet;
+
+  const local = getLocal<Pet>('pethealth_pets');
+  const updatedLocal = [newPet, ...local];
+  setLocal('pethealth_pets', updatedLocal);
+
+  try {
+    const res = await fetch('/api/pets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newPet)
+    });
+    if (res.ok) {
+      const serverPet = await res.json();
+      return serverPet;
+    }
+  } catch (err) {
+    console.warn('API createPet failed, saved locally', err);
+  }
+
+  return newPet;
 }
 
 export async function updatePet(pet: Pet): Promise<Pet> {
-  const res = await fetch(`/api/pets/${pet.id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(pet)
-  });
-  if (!res.ok) throw new Error('Failed to update pet');
-  return res.json();
+  const local = getLocal<Pet>('pethealth_pets');
+  const index = local.findIndex(p => p.id === pet.id);
+  let updatedLocal: Pet[];
+  if (index >= 0) {
+    updatedLocal = [...local];
+    updatedLocal[index] = pet;
+  } else {
+    updatedLocal = [pet, ...local];
+  }
+  setLocal('pethealth_pets', updatedLocal);
+
+  try {
+    const res = await fetch(`/api/pets/${pet.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(pet)
+    });
+    if (res.ok) {
+      const serverPet = await res.json();
+      return serverPet;
+    }
+  } catch (err) {
+    console.warn('API updatePet failed, updated locally', err);
+  }
+
+  return pet;
 }
 
 export async function deletePet(id: string): Promise<boolean> {
-  const res = await fetch(`/api/pets/${id}`, {
-    method: 'DELETE'
-  });
-  if (!res.ok) throw new Error('Failed to delete pet');
-  const data = await res.json();
-  return data.success;
-}
+  const local = getLocal<Pet>('pethealth_pets');
+  setLocal('pethealth_pets', local.filter(p => p.id !== id));
 
-export async function fetchVaccinations(petId?: string): Promise<Vaccination[]> {
-  const url = petId ? `/api/vaccinations?petId=${petId}` : '/api/vaccinations';
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Failed to fetch vaccinations');
-  return res.json();
-}
-
-export async function createVaccination(vac: Omit<Vaccination, 'id'>): Promise<Vaccination> {
-  const id = 'vac_' + Math.random().toString(36).substr(2, 9);
-  const res = await fetch('/api/vaccinations', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...vac, id })
-  });
-  if (!res.ok) throw new Error('Failed to create vaccination');
-  return res.json();
-}
-
-export async function deleteVaccination(id: string): Promise<boolean> {
-  const res = await fetch(`/api/vaccinations/${id}`, {
-    method: 'DELETE'
-  });
-  if (!res.ok) throw new Error('Failed to delete vaccination');
-  const data = await res.json();
-  return data.success;
-}
-
-export async function fetchTreatments(petId?: string): Promise<Treatment[]> {
-  const url = petId ? `/api/treatments?petId=${petId}` : '/api/treatments';
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Failed to fetch treatments');
-  return res.json();
-}
-
-export async function createTreatment(tr: Omit<Treatment, 'id'>): Promise<Treatment> {
-  const id = 'tr_' + Math.random().toString(36).substr(2, 9);
-  const res = await fetch('/api/treatments', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...tr, id })
-  });
-  if (!res.ok) throw new Error('Failed to create treatment');
-  return res.json();
-}
-
-export async function deleteTreatment(id: string): Promise<boolean> {
-  const res = await fetch(`/api/treatments/${id}`, {
-    method: 'DELETE'
-  });
-  if (!res.ok) throw new Error('Failed to delete treatment');
-  const data = await res.json();
-  return data.success;
-}
-
-export async function fetchTickFleas(petId?: string): Promise<TickFlea[]> {
-  const url = petId ? `/api/tickfleas?petId=${petId}` : '/api/tickfleas';
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Failed to fetch tickfleas');
-  return res.json();
-}
-
-export async function createTickFlea(tf: Omit<TickFlea, 'id'>): Promise<TickFlea> {
-  const id = 'tf_' + Math.random().toString(36).substr(2, 9);
-  const res = await fetch('/api/tickfleas', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...tf, id })
-  });
-  if (!res.ok) throw new Error('Failed to create tickflea record');
-  return res.json();
-}
-
-export async function deleteTickFlea(id: string): Promise<boolean> {
-  const res = await fetch(`/api/tickfleas/${id}`, {
-    method: 'DELETE'
-  });
-  if (!res.ok) throw new Error('Failed to delete tickflea record');
-  const data = await res.json();
-  return data.success;
-}
-
-export async function fetchDewormings(petId?: string): Promise<Deworming[]> {
-  const url = petId ? `/api/dewormings?petId=${petId}` : '/api/dewormings';
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Failed to fetch dewormings');
-  return res.json();
-}
-
-export async function createDeworming(dw: Omit<Deworming, 'id'>): Promise<Deworming> {
-  const id = 'dw_' + Math.random().toString(36).substr(2, 9);
-  const res = await fetch('/api/dewormings', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...dw, id })
-  });
-  if (!res.ok) throw new Error('Failed to create deworming record');
-  return res.json();
-}
-
-export async function deleteDeworming(id: string): Promise<boolean> {
-  const res = await fetch(`/api/dewormings/${id}`, {
-    method: 'DELETE'
-  });
-  if (!res.ok) throw new Error('Failed to delete deworming record');
-  const data = await res.json();
-  return data.success;
-}
-
-export async function askAiAdvice(pet: Pet | null, query: string, context: any): Promise<string> {
-  const res = await fetch('/api/ai/advice', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pet, query, context })
-  });
-  if (!res.ok) {
-    try {
-      const errData = await res.json();
-      throw new Error(errData.error || 'Failed to connect to AI server');
-    } catch {
-      throw new Error('Failed to connect to AI server');
-    }
+  try {
+    await fetch(`/api/pets/${id}`, { method: 'DELETE' });
+  } catch (err) {
+    console.warn('API deletePet failed, deleted locally', err);
   }
-  const data = await res.json();
-  return data.advice;
+  return true;
 }
 
-// --- VaccineSymptoms API ---
-export async function fetchVaccineSymptoms(petId?: string): Promise<VaccineSymptom[]> {
-  const url = petId ? `/api/vaccinesymptoms?petId=${petId}` : '/api/vaccinesymptoms';
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Failed to fetch vaccine symptoms');
-  return res.json();
+// Generic CRUD Helper for Health Records
+async function fetchRecords<T extends { id: string; petId: string }>(
+  storageKey: string,
+  apiEndpoint: string,
+  petId?: string
+): Promise<T[]> {
+  const local = getLocal<T>(storageKey);
+  const filterLocal = petId ? local.filter(r => r.petId === petId) : local;
+
+  try {
+    const url = petId ? `/api/${apiEndpoint}?petId=${petId}` : `/api/${apiEndpoint}`;
+    const res = await fetch(url);
+    if (res.ok) {
+      const serverData = await res.json();
+      const merged = mergeData(serverData, local);
+      setLocal(storageKey, merged);
+      return petId ? merged.filter(r => r.petId === petId) : merged;
+    }
+  } catch (err) {
+    console.warn(`API fetch ${apiEndpoint} failed, using local storage`, err);
+  }
+  return filterLocal;
 }
 
-export async function createVaccineSymptom(vs: Omit<VaccineSymptom, 'id'>): Promise<VaccineSymptom> {
-  const id = 'vs_' + Math.random().toString(36).substr(2, 9);
-  const res = await fetch('/api/vaccinesymptoms', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...vs, id })
-  });
-  if (!res.ok) throw new Error('Failed to create vaccine symptom record');
-  return res.json();
+async function createRecord<T extends { id: string }>(
+  storageKey: string,
+  apiEndpoint: string,
+  prefix: string,
+  recordData: Omit<T, 'id'>
+): Promise<T> {
+  const id = prefix + '_' + Math.random().toString(36).substr(2, 9);
+  const newRecord = { ...recordData, id } as unknown as T;
+
+  const local = getLocal<T>(storageKey);
+  setLocal(storageKey, [newRecord, ...local]);
+
+  try {
+    const res = await fetch(`/api/${apiEndpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newRecord)
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn(`API create ${apiEndpoint} failed, saved locally`, err);
+  }
+
+  return newRecord;
 }
 
-export async function deleteVaccineSymptom(id: string): Promise<boolean> {
-  const res = await fetch(`/api/vaccinesymptoms/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete vaccine symptom record');
-  const data = await res.json();
-  return data.success;
+async function deleteRecord<T extends { id: string }>(
+  storageKey: string,
+  apiEndpoint: string,
+  id: string
+): Promise<boolean> {
+  const local = getLocal<T>(storageKey);
+  setLocal(storageKey, local.filter(r => r.id !== id));
+
+  try {
+    await fetch(`/api/${apiEndpoint}/${id}`, { method: 'DELETE' });
+  } catch (err) {
+    console.warn(`API delete ${apiEndpoint} failed, deleted locally`, err);
+  }
+  return true;
 }
 
-// --- Heartworms API ---
-export async function fetchHeartworms(petId?: string): Promise<Heartworm[]> {
-  const url = petId ? `/api/heartworms?petId=${petId}` : '/api/heartworms';
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Failed to fetch heartworms');
-  return res.json();
+// --- Vaccinations ---
+export function fetchVaccinations(petId?: string) {
+  return fetchRecords<Vaccination>('pethealth_vaccinations', 'vaccinations', petId);
+}
+export function createVaccination(vac: Omit<Vaccination, 'id'>) {
+  return createRecord<Vaccination>('pethealth_vaccinations', 'vaccinations', 'vac', vac);
+}
+export function deleteVaccination(id: string) {
+  return deleteRecord<Vaccination>('pethealth_vaccinations', 'vaccinations', id);
 }
 
-export async function createHeartworm(hw: Omit<Heartworm, 'id'>): Promise<Heartworm> {
-  const id = 'hw_' + Math.random().toString(36).substr(2, 9);
-  const res = await fetch('/api/heartworms', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...hw, id })
-  });
-  if (!res.ok) throw new Error('Failed to create heartworm record');
-  return res.json();
+// --- Treatments ---
+export function fetchTreatments(petId?: string) {
+  return fetchRecords<Treatment>('pethealth_treatments', 'treatments', petId);
+}
+export function createTreatment(tr: Omit<Treatment, 'id'>) {
+  return createRecord<Treatment>('pethealth_treatments', 'treatments', 'tr', tr);
+}
+export function deleteTreatment(id: string) {
+  return deleteRecord<Treatment>('pethealth_treatments', 'treatments', id);
 }
 
-export async function deleteHeartworm(id: string): Promise<boolean> {
-  const res = await fetch(`/api/heartworms/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete heartworm record');
-  const data = await res.json();
-  return data.success;
+// --- TickFleas ---
+export function fetchTickFleas(petId?: string) {
+  return fetchRecords<TickFlea>('pethealth_tickfleas', 'tickfleas', petId);
+}
+export function createTickFlea(tf: Omit<TickFlea, 'id'>) {
+  return createRecord<TickFlea>('pethealth_tickfleas', 'tickfleas', 'tf', tf);
+}
+export function deleteTickFlea(id: string) {
+  return deleteRecord<TickFlea>('pethealth_tickfleas', 'tickfleas', id);
 }
 
-// --- RoutineHealth API ---
-export async function fetchRoutineHealths(petId?: string): Promise<RoutineHealth[]> {
-  const url = petId ? `/api/routinehealths?petId=${petId}` : '/api/routinehealths';
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Failed to fetch routine health records');
-  return res.json();
+// --- Dewormings ---
+export function fetchDewormings(petId?: string) {
+  return fetchRecords<Deworming>('pethealth_dewormings', 'dewormings', petId);
+}
+export function createDeworming(dw: Omit<Deworming, 'id'>) {
+  return createRecord<Deworming>('pethealth_dewormings', 'dewormings', 'dw', dw);
+}
+export function deleteDeworming(id: string) {
+  return deleteRecord<Deworming>('pethealth_dewormings', 'dewormings', id);
 }
 
-export async function createRoutineHealth(rh: Omit<RoutineHealth, 'id'>): Promise<RoutineHealth> {
-  const id = 'rh_' + Math.random().toString(36).substr(2, 9);
-  const res = await fetch('/api/routinehealths', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...rh, id })
-  });
-  if (!res.ok) throw new Error('Failed to create routine health record');
-  return res.json();
+// --- VaccineSymptoms ---
+export function fetchVaccineSymptoms(petId?: string) {
+  return fetchRecords<VaccineSymptom>('pethealth_vaccinesymptoms', 'vaccinesymptoms', petId);
+}
+export function createVaccineSymptom(vs: Omit<VaccineSymptom, 'id'>) {
+  return createRecord<VaccineSymptom>('pethealth_vaccinesymptoms', 'vaccinesymptoms', 'vs', vs);
+}
+export function deleteVaccineSymptom(id: string) {
+  return deleteRecord<VaccineSymptom>('pethealth_vaccinesymptoms', 'vaccinesymptoms', id);
 }
 
-export async function deleteRoutineHealth(id: string): Promise<boolean> {
-  const res = await fetch(`/api/routinehealths/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete routine health record');
-  const data = await res.json();
-  return data.success;
+// --- Heartworms ---
+export function fetchHeartworms(petId?: string) {
+  return fetchRecords<Heartworm>('pethealth_heartworms', 'heartworms', petId);
+}
+export function createHeartworm(hw: Omit<Heartworm, 'id'>) {
+  return createRecord<Heartworm>('pethealth_heartworms', 'heartworms', 'hw', hw);
+}
+export function deleteHeartworm(id: string) {
+  return deleteRecord<Heartworm>('pethealth_heartworms', 'heartworms', id);
 }
 
-// --- AnnualHealths API ---
-export async function fetchAnnualHealths(petId?: string): Promise<AnnualHealth[]> {
-  const url = petId ? `/api/annualhealths?petId=${petId}` : '/api/annualhealths';
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Failed to fetch annual health checks');
-  return res.json();
+// --- RoutineHealths ---
+export function fetchRoutineHealths(petId?: string) {
+  return fetchRecords<RoutineHealth>('pethealth_routinehealths', 'routinehealths', petId);
+}
+export function createRoutineHealth(rh: Omit<RoutineHealth, 'id'>) {
+  return createRecord<RoutineHealth>('pethealth_routinehealths', 'routinehealths', 'rh', rh);
+}
+export function deleteRoutineHealth(id: string) {
+  return deleteRecord<RoutineHealth>('pethealth_routinehealths', 'routinehealths', id);
 }
 
-export async function createAnnualHealth(ah: Omit<AnnualHealth, 'id'>): Promise<AnnualHealth> {
-  const id = 'ah_' + Math.random().toString(36).substr(2, 9);
-  const res = await fetch('/api/annualhealths', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...ah, id })
-  });
-  if (!res.ok) throw new Error('Failed to create annual health check');
-  return res.json();
+// --- AnnualHealths ---
+export function fetchAnnualHealths(petId?: string) {
+  return fetchRecords<AnnualHealth>('pethealth_annualhealths', 'annualhealths', petId);
+}
+export function createAnnualHealth(ah: Omit<AnnualHealth, 'id'>) {
+  return createRecord<AnnualHealth>('pethealth_annualhealths', 'annualhealths', 'ah', ah);
+}
+export function deleteAnnualHealth(id: string) {
+  return deleteRecord<AnnualHealth>('pethealth_annualhealths', 'annualhealths', id);
 }
 
-export async function deleteAnnualHealth(id: string): Promise<boolean> {
-  const res = await fetch(`/api/annualhealths/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete annual health check');
-  const data = await res.json();
-  return data.success;
+// --- Memories ---
+export function fetchMemories(petId?: string) {
+  return fetchRecords<Memory>('pethealth_memories', 'memories', petId);
+}
+export function createMemory(mem: Omit<Memory, 'id'>) {
+  return createRecord<Memory>('pethealth_memories', 'memories', 'mem', mem);
+}
+export function deleteMemory(id: string) {
+  return deleteRecord<Memory>('pethealth_memories', 'memories', id);
 }
 
-// --- Memories API ---
-export async function fetchMemories(petId?: string): Promise<Memory[]> {
-  const url = petId ? `/api/memories?petId=${petId}` : '/api/memories';
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Failed to fetch memories');
-  return res.json();
+// --- Expenses ---
+export function fetchExpenses(petId?: string) {
+  return fetchRecords<Expense>('pethealth_expenses', 'expenses', petId);
+}
+export function createExpense(exp: Omit<Expense, 'id'>) {
+  return createRecord<Expense>('pethealth_expenses', 'expenses', 'exp', exp);
+}
+export function deleteExpense(id: string) {
+  return deleteRecord<Expense>('pethealth_expenses', 'expenses', id);
 }
 
-export async function createMemory(mem: Omit<Memory, 'id'>): Promise<Memory> {
-  const id = 'mem_' + Math.random().toString(36).substr(2, 9);
-  const res = await fetch('/api/memories', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...mem, id })
-  });
-  if (!res.ok) throw new Error('Failed to create memory');
-  return res.json();
-}
-
-export async function deleteMemory(id: string): Promise<boolean> {
-  const res = await fetch(`/api/memories/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete memory');
-  const data = await res.json();
-  return data.success;
-}
-
-// --- Expenses API ---
-export async function fetchExpenses(petId?: string): Promise<Expense[]> {
-  const url = petId ? `/api/expenses?petId=${petId}` : '/api/expenses';
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Failed to fetch expenses');
-  return res.json();
-}
-
-export async function createExpense(exp: Omit<Expense, 'id'>): Promise<Expense> {
-  const id = 'exp_' + Math.random().toString(36).substr(2, 9);
-  const res = await fetch('/api/expenses', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...exp, id })
-  });
-  if (!res.ok) throw new Error('Failed to create expense');
-  return res.json();
-}
-
-export async function deleteExpense(id: string): Promise<boolean> {
-  const res = await fetch(`/api/expenses/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete expense');
-  const data = await res.json();
-  return data.success;
+// --- AI Advice ---
+export async function askAiAdvice(pet: Pet | null, query: string, context: any): Promise<string> {
+  try {
+    const res = await fetch('/api/ai/advice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pet, query, context })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data.advice;
+    }
+  } catch (err) {
+    console.warn('AI advice endpoint failed', err);
+  }
+  return "🐶 ขออภัยนะคะ ขณะนี้ระบบ AI ไม่สามารถประมวลผลได้ชั่วคราว กรุณาลองใหม่อีกครั้งในภายหลังค่ะ";
 }

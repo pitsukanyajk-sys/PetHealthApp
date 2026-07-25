@@ -63,10 +63,22 @@ async function supabaseGetAll<T>(tableName: string, filterKey?: string, filterVa
   return null;
 }
 
+function cleanRecord(record: any) {
+  if (!record || typeof record !== 'object') return record;
+  const clean: any = {};
+  for (const [key, val] of Object.entries(record)) {
+    if (val !== undefined) {
+      clean[key] = val;
+    }
+  }
+  return clean;
+}
+
 async function supabaseInsert<T>(tableName: string, record: any): Promise<T | null> {
   if (!useSupabase || !supabase) return null;
   try {
-    const { error } = await supabase.from(tableName).insert([record]);
+    const payload = cleanRecord(record);
+    const { error } = await supabase.from(tableName).insert([payload]);
     if (!error) return record as T;
     console.error(`Supabase insert error on ${tableName}:`, error.message);
     return null;
@@ -79,7 +91,8 @@ async function supabaseInsert<T>(tableName: string, record: any): Promise<T | nu
 async function supabaseUpdate<T>(tableName: string, id: string, record: any): Promise<T | null> {
   if (!useSupabase || !supabase) return null;
   try {
-    const { error } = await supabase.from(tableName).update(record).eq('id', id);
+    const payload = cleanRecord(record);
+    const { error } = await supabase.from(tableName).update(payload).eq('id', id);
     if (!error) return record as T;
     console.error(`Supabase update error on ${tableName}:`, error.message);
     return null;
